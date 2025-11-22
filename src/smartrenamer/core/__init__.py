@@ -15,6 +15,18 @@ from smartrenamer.core.scanner import FileScanner
 from smartrenamer.core.library import MediaLibrary
 from smartrenamer.core.parser import FileNameParser, 文件名解析器
 from smartrenamer.core.matcher import Matcher, MatchResult, 智能匹配器, 匹配结果
+from smartrenamer.core.renamer import (
+    Renamer,
+    重命名器,
+    RenameRuleManager,
+    重命名规则管理器,
+    RenameHistory,
+    重命名历史记录,
+    create_predefined_rule,
+    创建预定义规则,
+    PREDEFINED_TEMPLATES,
+    预定义模板,
+)
 
 __all__ = [
     "MediaFile",
@@ -33,4 +45,14 @@ __all__ = [
     "MatchResult",
     "智能匹配器",
     "匹配结果",
+    "Renamer",
+    "重命名器",
+    "RenameRuleManager",
+    "重命名规则管理器",
+    "RenameHistory",
+    "重命名历史记录",
+    "create_predefined_rule",
+    "创建预定义规则",
+    "PREDEFINED_TEMPLATES",
+    "预定义模板",
 ]
