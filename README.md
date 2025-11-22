@@ -14,20 +14,35 @@ SmartRenamer 可以帮助您：
 
 ## 功能特性
 
-### 当前版本 (v0.2.0)
+### 当前版本 (v0.3.0)
 
 - ✅ 完整的项目架构
 - ✅ 核心数据模型（MediaFile, RenameRule）
 - ✅ 配置管理系统
 - ✅ 文件信息提取工具
 - ✅ TMDB API 客户端封装
-- ✅ 单元测试框架
-- ✅ **媒体库扫描模块** (新增)
+- ✅ 单元测试框架（95个测试，80%覆盖率）
+- ✅ **媒体库扫描模块** (v0.2.0)
   - 🔍 递归目录扫描
   - 🎬 自动识别电影和电视剧
   - 💾 缓存机制
   - 🔄 增量更新
   - 🔎 快速搜索查询
+- ✅ **文件名智能解析** (v0.3.0 新增)
+  - 📝 识别常见命名格式
+  - 🎯 提取标题、年份、分辨率等信息
+  - 📺 支持电视剧季集识别
+  - 🌐 中英双语接口
+- ✅ **增强 TMDB 客户端** (v0.3.0 新增)
+  - 💾 智能缓存系统
+  - 🔄 API 重试机制
+  - 📅 年份过滤支持
+  - 📊 剧集详情获取
+- ✅ **智能匹配引擎** (v0.3.0 新增)
+  - 🎯 多条件匹配算法
+  - 📈 相似度计算
+  - 🤖 自动确认高相似度匹配
+  - 📋 多结果支持
 
 ### 计划功能
 
@@ -116,6 +131,78 @@ smartrenamer
 ```
 
 ### 3. 使用示例
+
+#### 文件名解析示例
+
+```python
+from smartrenamer.core import FileNameParser
+
+# 创建解析器
+parser = FileNameParser()
+
+# 解析电影文件名
+result = parser.parse("The.Matrix.1999.1080p.BluRay.x264.mkv")
+print(f"标题: {result['title']}")      # The Matrix
+print(f"年份: {result['year']}")       # 1999
+print(f"分辨率: {result['resolution']}")  # 1080P
+
+# 解析电视剧文件名
+result = parser.parse("Breaking.Bad.S01E01.1080p.mkv")
+print(f"标题: {result['title']}")      # Breaking Bad
+print(f"季集: S{result['season']:02d}E{result['episode']:02d}")  # S01E01
+```
+
+#### TMDB 匹配示例
+
+```python
+from smartrenamer.core import Matcher
+from smartrenamer.api import EnhancedTMDBClient
+
+# 创建客户端和匹配器
+client = EnhancedTMDBClient("your_api_key", 启用缓存=True)
+matcher = Matcher(client)
+
+# 匹配文件
+matches = matcher.match_file("The.Matrix.1999.1080p.mkv", max_results=3)
+
+# 查看匹配结果
+for i, match in enumerate(matches, 1):
+    print(f"{i}. {match.tmdb数据['title']}")
+    print(f"   相似度: {match.相似度:.2%}")
+```
+
+#### 完整工作流示例
+
+```python
+from smartrenamer.core import FileNameParser, Matcher, MediaFile
+from smartrenamer.api import EnhancedTMDBClient
+from pathlib import Path
+
+# 初始化组件
+parser = FileNameParser()
+client = EnhancedTMDBClient("your_api_key")
+matcher = Matcher(client, parser)
+
+# 创建媒体文件
+file_path = Path("/media/movies/Inception.2010.1080p.mkv")
+media_file = MediaFile(
+    path=file_path,
+    original_name=file_path.name,
+    extension=file_path.suffix
+)
+
+# 匹配 TMDB 数据
+matches = matcher.match_media_file(media_file, max_results=1)
+
+if matches:
+    # 应用最佳匹配
+    best_match = matches[0]
+    updated_file = matcher.apply_match_to_media_file(media_file, best_match)
+    
+    print(f"标题: {updated_file.title}")
+    print(f"年份: {updated_file.year}")
+    print(f"TMDB ID: {updated_file.tmdb_id}")
+```
 
 #### 基本重命名示例
 
