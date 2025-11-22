@@ -1,0 +1,18 @@
+# HTTP 请求库
+requests>=2.31.0
+
+# TMDB API 客户端
+tmdbv3api>=1.9.0
+
+# Qt 图形界面框架
+PySide6>=6.6.0
+
+# 模板引擎
+Jinja2>=3.1.2
+
+# 图像处理
+Pillow>=10.1.0
+
+# 开发和测试依赖
+pytest>=7.4.3
+pytest-cov>=4.1.0
