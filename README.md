@@ -14,7 +14,7 @@ SmartRenamer 可以帮助您：
 
 ## 功能特性
 
-### 当前版本 (v0.1.0)
+### 当前版本 (v0.2.0)
 
 - ✅ 完整的项目架构
 - ✅ 核心数据模型（MediaFile, RenameRule）
@@ -22,6 +22,12 @@ SmartRenamer 可以帮助您：
 - ✅ 文件信息提取工具
 - ✅ TMDB API 客户端封装
 - ✅ 单元测试框架
+- ✅ **媒体库扫描模块** (新增)
+  - 🔍 递归目录扫描
+  - 🎬 自动识别电影和电视剧
+  - 💾 缓存机制
+  - 🔄 增量更新
+  - 🔎 快速搜索查询
 
 ### 计划功能
 
@@ -111,6 +117,8 @@ smartrenamer
 
 ### 3. 使用示例
 
+#### 基本重命名示例
+
 ```python
 from smartrenamer import MediaFile, MediaType, Config
 
@@ -133,6 +141,33 @@ from smartrenamer.core import DEFAULT_MOVIE_RULE
 new_name = DEFAULT_MOVIE_RULE.apply(media_file)
 print(f"新文件名: {new_name}")
 ```
+
+#### 媒体库扫描示例
+
+```python
+from pathlib import Path
+from smartrenamer import FileScanner, MediaLibrary
+
+# 创建媒体库并添加扫描源
+library = MediaLibrary(enable_cache=True)
+library.add_scan_source(Path("/path/to/movies"))
+library.add_scan_source(Path("/path/to/tv_shows"))
+
+# 扫描媒体库
+scanner = FileScanner()
+total = library.scan(scanner)
+print(f"找到 {total} 个媒体文件")
+
+# 查询电影
+movies = library.get_movies()
+for movie in movies:
+    print(f"{movie.title} ({movie.year})")
+
+# 搜索
+results = library.search_by_title("Matrix")
+```
+
+更多示例请查看 [MEDIA_LIBRARY_GUIDE.md](MEDIA_LIBRARY_GUIDE.md) 和 `examples/` 目录。
 
 ## 项目结构
 

@@ -29,6 +29,11 @@ class Config:
     supported_extensions: list = None
     min_file_size: int = 10 * 1024 * 1024  # 10 MB
     
+    # 媒体库扫描配置
+    scan_sources: list = None  # 扫描源目录列表
+    exclude_dirs: list = None  # 排除的目录名称列表
+    max_scan_depth: int = None  # 最大扫描深度，None 表示无限制
+    
     # UI 设置
     theme: str = "light"
     window_width: int = 1200
@@ -50,6 +55,14 @@ class Config:
             self.supported_extensions = [
                 ".mkv", ".mp4", ".avi", ".mov",
                 ".wmv", ".flv", ".m4v", ".ts"
+            ]
+        if self.scan_sources is None:
+            self.scan_sources = []
+        if self.exclude_dirs is None:
+            self.exclude_dirs = [
+                "Sample", "Samples", "sample", "samples",
+                "Subs", "Subtitles", "subs", "subtitles",
+                "Extras", "extras"
             ]
     
     @classmethod

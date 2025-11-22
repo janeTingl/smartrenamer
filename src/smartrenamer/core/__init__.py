@@ -11,6 +11,8 @@ from smartrenamer.core.models import (
     DEFAULT_TV_RULE,
 )
 from smartrenamer.core.config import Config, get_config, set_config
+from smartrenamer.core.scanner import FileScanner
+from smartrenamer.core.library import MediaLibrary
 
 __all__ = [
     "MediaFile",
@@ -21,4 +23,6 @@ __all__ = [
     "Config",
     "get_config",
     "set_config",
+    "FileScanner",
+    "MediaLibrary",
 ]
