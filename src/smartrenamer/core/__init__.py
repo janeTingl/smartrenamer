@@ -13,6 +13,8 @@ from smartrenamer.core.models import (
 from smartrenamer.core.config import Config, get_config, set_config
 from smartrenamer.core.scanner import FileScanner
 from smartrenamer.core.library import MediaLibrary
+from smartrenamer.core.parser import FileNameParser, 文件名解析器
+from smartrenamer.core.matcher import Matcher, MatchResult, 智能匹配器, 匹配结果
 
 __all__ = [
     "MediaFile",
@@ -25,4 +27,10 @@ __all__ = [
     "set_config",
     "FileScanner",
     "MediaLibrary",
+    "FileNameParser",
+    "文件名解析器",
+    "Matcher",
+    "MatchResult",
+    "智能匹配器",
+    "匹配结果",
 ]
