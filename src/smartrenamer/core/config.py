@@ -128,6 +128,40 @@ class Config:
         config_dir = Path.home() / ".smartrenamer"
         return config_dir / "config.json"
     
+    def get_cache_dir(self) -> Path:
+        """
+        获取缓存目录路径
+        
+        Returns:
+            Path: 缓存目录路径
+        """
+        cache_dir = Path.home() / ".smartrenamer" / "cache"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        return cache_dir
+    
+    def get(self, key: str, default: Any = None) -> Any:
+        """
+        获取配置项
+        
+        Args:
+            key: 配置项名称
+            default: 默认值
+            
+        Returns:
+            Any: 配置项值
+        """
+        return getattr(self, key, default)
+    
+    def set(self, key: str, value: Any) -> None:
+        """
+        设置配置项
+        
+        Args:
+            key: 配置项名称
+            value: 配置项值
+        """
+        setattr(self, key, value)
+    
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典格式"""
         return asdict(self)
