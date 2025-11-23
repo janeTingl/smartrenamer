@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=SmartRenamer
+GenericName=媒体文件重命名工具
+GenericName[en]=Media File Renamer
+Comment=智能媒体文件重命名工具，基于 TMDB API
+Comment[en]=Intelligent media file renaming tool based on TMDB API
+Exec=smartrenamer
+Icon=smartrenamer
+Terminal=false
+Categories=Utility;AudioVideo;FileTools;
+Keywords=media;rename;movie;tv;tmdb;
+StartupNotify=true
+StartupWMClass=SmartRenamer

@@ -1,0 +1,301 @@
+name: 构建跨平台发布包
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号 (例如: 0.6.0)'
+        required: true
+        default: '0.6.0'
+
+env:
+  APP_NAME: SmartRenamer
+  PYTHON_VERSION: '3.10'
+
+jobs:
+  # Windows 构建
+  build-windows:
+    name: 构建 Windows 可执行文件
+    runs-on: windows-latest
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+      
+      - name: 设置 Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller pywin32
+      
+      - name: 构建可执行文件
+        run: |
+          pyinstaller --clean --noconfirm smartrenamer.spec
+      
+      - name: 测试可执行文件
+        run: |
+          .\dist\SmartRenamer.exe --help
+      
+      - name: 创建便携版压缩包
+        run: |
+          cd dist
+          Compress-Archive -Path SmartRenamer.exe, _internal -DestinationPath SmartRenamer-Windows-Portable.zip
+      
+      - name: 安装 NSIS
+        run: |
+          choco install nsis -y
+      
+      - name: 创建安装程序
+        run: |
+          & "C:\Program Files (x86)\NSIS\makensis.exe" scripts\windows\installer.nsi
+        continue-on-error: true
+      
+      - name: 生成校验和
+        run: |
+          cd dist
+          Get-FileHash -Algorithm SHA256 *.exe, *.zip | Format-List | Out-File -FilePath checksums-windows.txt
+      
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-build
+          path: |
+            dist/*.exe
+            dist/*.zip
+            dist/checksums-windows.txt
+          retention-days: 7
+
+  # macOS 构建
+  build-macos:
+    name: 构建 macOS 应用
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        arch: [x86_64, arm64]
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+      
+      - name: 设置 Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+      
+      - name: 构建应用包
+        run: |
+          pyinstaller --clean --noconfirm smartrenamer.spec
+      
+      - name: 测试应用
+        run: |
+          ./dist/SmartRenamer.app/Contents/MacOS/SmartRenamer --help
+      
+      - name: 创建 DMG
+        run: |
+          cd scripts/macos
+          ./create_dmg.sh
+      
+      - name: 生成校验和
+        run: |
+          cd dist
+          shasum -a 256 *.dmg > checksums-macos-${{ matrix.arch }}.txt
+      
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-${{ matrix.arch }}-build
+          path: |
+            dist/*.dmg
+            dist/*.app
+            dist/checksums-macos-${{ matrix.arch }}.txt
+          retention-days: 7
+
+  # Linux 构建
+  build-linux:
+    name: 构建 Linux AppImage
+    runs-on: ubuntu-20.04
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+      
+      - name: 设置 Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: 安装系统依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libxcb-xinerama0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-randr0 \
+            libxcb-render-util0 \
+            libxcb-shape0 \
+            libxcb-xfixes0 \
+            libxkbcommon-x11-0 \
+            libgl1-mesa-glx \
+            libegl1-mesa \
+            libfontconfig1 \
+            libdbus-1-3 \
+            file \
+            wget
+      
+      - name: 安装 Python 依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+      
+      - name: 构建可执行文件
+        run: |
+          pyinstaller --clean --noconfirm smartrenamer.spec
+      
+      - name: 测试可执行文件
+        run: |
+          ./dist/SmartRenamer --help
+        env:
+          QT_QPA_PLATFORM: offscreen
+      
+      - name: 下载 appimagetool
+        run: |
+          wget -O /tmp/appimagetool "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+          chmod +x /tmp/appimagetool
+      
+      - name: 创建 AppImage
+        run: |
+          cd scripts/linux
+          ./create_appimage.sh
+      
+      - name: 测试 AppImage
+        run: |
+          chmod +x dist/*.AppImage
+          ./dist/*.AppImage --help
+        env:
+          QT_QPA_PLATFORM: offscreen
+      
+      - name: 生成校验和
+        run: |
+          cd dist
+          sha256sum *.AppImage > checksums-linux.txt
+      
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v3
+        with:
+          name: linux-build
+          path: |
+            dist/*.AppImage
+            dist/checksums-linux.txt
+          retention-days: 7
+
+  # 创建发布
+  create-release:
+    name: 创建 GitHub Release
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+      
+      - name: 下载所有构建产物
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+      
+      - name: 整理发布文件
+        run: |
+          mkdir -p release
+          find artifacts -type f \( -name "*.exe" -o -name "*.zip" -o -name "*.dmg" -o -name "*.AppImage" -o -name "checksums*.txt" \) -exec cp {} release/ \;
+          ls -lah release/
+      
+      - name: 生成发布说明
+        id: release_notes
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          
+          cat > release_notes.md << EOF
+          # SmartRenamer v${VERSION}
+          
+          ## 🎉 发布说明
+          
+          这是 SmartRenamer 的跨平台发布版本，包含以下平台的可执行文件：
+          
+          ### 📦 下载
+          
+          - **Windows**: SmartRenamer-Windows-Setup.exe (安装程序) 或 SmartRenamer-Windows-Portable.zip (便携版)
+          - **macOS**: SmartRenamer-macOS.dmg (支持 Intel 和 Apple Silicon)
+          - **Linux**: SmartRenamer-Linux-x86_64.AppImage
+          
+          ### ✨ 主要功能
+          
+          - 智能媒体文件识别和重命名
+          - TMDB 数据库集成
+          - 多种重命名规则模板
+          - 批量处理支持
+          - 历史记录和撤销功能
+          - 现代化图形界面
+          
+          ### 📋 系统要求
+          
+          - **Windows**: Windows 10 或更高版本
+          - **macOS**: macOS 10.13 或更高版本
+          - **Linux**: 主流发行版（Ubuntu 20.04+, Fedora 35+, Debian 11+）
+          
+          ### 🔒 文件校验
+          
+          所有文件的 SHA256 校验和包含在 checksums-*.txt 文件中。
+          
+          ### 📚 文档
+          
+          - [安装指南](https://github.com/smartrenamer/smartrenamer/blob/main/README.md)
+          - [使用文档](https://github.com/smartrenamer/smartrenamer/blob/main/UI_GUIDE.md)
+          - [打包指南](https://github.com/smartrenamer/smartrenamer/blob/main/PACKAGING_GUIDE.md)
+          
+          ### 🐛 已知问题
+          
+          如有任何问题，请在 [Issues](https://github.com/smartrenamer/smartrenamer/issues) 中报告。
+          
+          EOF
+          
+          cat release_notes.md
+      
+      - name: 创建 Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: SmartRenamer v${{ steps.release_notes.outputs.VERSION }}
+          body_path: release_notes.md
+          files: release/*
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: 发布到 PyPI（可选）
+        if: false  # 需要时设置为 true
+        run: |
+          pip install build twine
+          python -m build
+          twine upload dist/*
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}

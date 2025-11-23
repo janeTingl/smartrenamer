@@ -2,6 +2,86 @@
 
 本文档记录 SmartRenamer 项目的所有重要更改。
 
+## [0.6.0] - 2024-11-24
+
+### 新增功能
+
+#### 跨平台打包支持 📦
+
+- **Windows 打包**
+  - PyInstaller 配置文件（smartrenamer.spec）
+  - 单文件可执行文件支持
+  - NSIS 安装程序脚本（installer.nsi）
+  - 便携版 ZIP 打包
+  - 桌面和开始菜单快捷方式
+  - 完整的卸载程序
+
+- **macOS 打包**
+  - .app 应用包生成
+  - DMG 镜像创建脚本
+  - Universal Binary 支持（Intel + Apple Silicon）
+  - 签名和公证支持（可选）
+  - Applications 文件夹集成
+
+- **Linux 打包**
+  - AppImage 便携格式支持
+  - 自动依赖打包
+  - FUSE 集成
+  - Desktop 文件和图标
+  - 主流发行版兼容性
+
+- **自动化构建**
+  - 统一构建脚本（scripts/build.py）
+  - 平台特定脚本（Windows/macOS/Linux）
+  - 快速构建脚本（build.sh/build.bat）
+  - SHA256 校验和生成
+  - 构建日志和错误处理
+
+- **CI/CD 工作流**
+  - GitHub Actions 跨平台构建（.github/workflows/build-release.yml）
+  - Windows、macOS、Linux 并行构建
+  - 自动发布到 GitHub Releases
+  - 发布说明自动生成
+  - 多架构支持（x86_64, ARM64）
+
+- **完整文档**
+  - PACKAGING_GUIDE.md（打包和发布完整指南）
+  - SYSTEM_REQUIREMENTS.md（系统要求和兼容性）
+  - assets/README.md（图标创建指南）
+  - 诊断脚本（scripts/check_compatibility.sh）
+
+- **资源文件**
+  - 应用图标占位符（.ico/.icns/.png）
+  - 图标创建工具和指南
+  - 品牌资源管理
+
+### 改进
+
+- 更新 README.md 添加跨平台安装说明
+- 更新 requirements.txt 添加打包依赖说明
+- 优化 PyInstaller 配置
+- 添加构建脚本自动化
+- 改进错误处理和日志记录
+
+### 文档
+
+- 新增 PACKAGING_GUIDE.md（打包指南，300+ 行）
+- 新增 SYSTEM_REQUIREMENTS.md（系统要求，600+ 行）
+- 新增 assets/README.md（资源文件说明）
+- 更新 README.md 安装部分
+- 新增诊断脚本文档
+
+### 工具和脚本
+
+- scripts/build.py - 统一构建脚本
+- scripts/windows/installer.nsi - Windows NSIS 安装程序
+- scripts/macos/create_dmg.sh - macOS DMG 创建脚本
+- scripts/linux/create_appimage.sh - Linux AppImage 创建脚本
+- scripts/check_compatibility.sh - 兼容性检查脚本
+- build.sh / build.bat - 快速构建脚本
+
+---
+
 ## [0.5.1] - 2024-11-23
 
 ### 新增功能
