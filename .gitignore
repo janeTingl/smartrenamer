@@ -58,6 +58,15 @@ config.local.json
 # 打包文件
 *.zip
 *.tar.gz
+*.dmg
+*.exe
+*.AppImage
+*.deb
+*.rpm
+
+# PyInstaller
+*.spec
+!smartrenamer.spec  # 保留主配置文件
 
 # Docker
 docker-compose.override.yml
@@ -66,3 +75,7 @@ docker-compose.override.yml
 # 用户数据和缓存
 .smartrenamer/
 media/
+
+# 构建产物
+checksums*.txt
+release/

@@ -16,3 +16,7 @@ Pillow>=10.1.0
 # 开发和测试依赖
 pytest>=7.4.3
 pytest-cov>=4.1.0
+
+# 打包依赖（可选，仅用于构建）
+# pyinstaller>=5.13.0
+# pywin32>=306  # Windows only

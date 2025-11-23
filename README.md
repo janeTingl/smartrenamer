@@ -69,9 +69,57 @@ SmartRenamer 可以帮助您：
 
 ## 安装说明
 
-### 方式 1: Docker（推荐）
+SmartRenamer 提供多种安装方式，选择最适合您的方式：
 
-使用 Docker 是最简单的方式，无需手动配置 Python 环境：
+### 方式 1: 下载可执行文件（推荐）⭐
+
+最简单的方式是直接下载对应平台的可执行文件，无需安装 Python 环境。
+
+#### Windows
+
+从 [GitHub Releases](https://github.com/smartrenamer/smartrenamer/releases) 下载：
+- `SmartRenamer-Windows-Setup.exe` - 安装程序（推荐）
+- `SmartRenamer-Windows-Portable.zip` - 便携版
+
+**安装程序使用**:
+1. 双击运行 `SmartRenamer-Windows-Setup.exe`
+2. 按照向导完成安装
+3. 从开始菜单或桌面快捷方式启动
+
+**便携版使用**:
+1. 解压 ZIP 文件
+2. 双击 `SmartRenamer.exe` 运行
+
+#### macOS
+
+从 [GitHub Releases](https://github.com/smartrenamer/smartrenamer/releases) 下载：
+- `SmartRenamer-macOS.dmg` - DMG 镜像（支持 Intel 和 Apple Silicon）
+
+**使用方法**:
+1. 下载并打开 `.dmg` 文件
+2. 将 SmartRenamer 拖到 Applications 文件夹
+3. 首次运行可能需要在"系统偏好设置 > 安全性与隐私"中允许
+
+#### Linux
+
+从 [GitHub Releases](https://github.com/smartrenamer/smartrenamer/releases) 下载：
+- `SmartRenamer-Linux-x86_64.AppImage` - AppImage 便携版
+
+**使用方法**:
+```bash
+# 1. 下载 AppImage
+wget https://github.com/smartrenamer/smartrenamer/releases/latest/download/SmartRenamer-Linux-x86_64.AppImage
+
+# 2. 添加执行权限
+chmod +x SmartRenamer-Linux-x86_64.AppImage
+
+# 3. 运行
+./SmartRenamer-Linux-x86_64.AppImage
+```
+
+### 方式 2: Docker（跨平台）🐳
+
+使用 Docker 是最简单的跨平台方式，无需手动配置环境：
 
 ```bash
 # 快速启动（自动配置）
@@ -79,11 +127,16 @@ SmartRenamer 可以帮助您：
 
 # 或使用 Docker Compose
 docker-compose up
+
+# 或使用 Make
+make gui
 ```
 
 详细说明请参考 [Docker 使用指南](DOCKER_USAGE.md)
 
-### 方式 2: 本地安装
+### 方式 3: Python 源码安装（开发者）
+
+适合开发者或需要自定义的高级用户。
 
 #### 环境要求
 
@@ -95,7 +148,7 @@ docker-compose up
 1. **克隆项目**
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/smartrenamer/smartrenamer.git
 cd smartrenamer
 ```
 
@@ -105,7 +158,7 @@ cd smartrenamer
 python -m venv venv
 
 # Windows
-venv\\Scripts\\activate
+venv\Scripts\activate
 
 # Linux/macOS
 source venv/bin/activate
