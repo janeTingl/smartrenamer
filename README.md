@@ -69,12 +69,28 @@ SmartRenamer 可以帮助您：
 
 ## 安装说明
 
-### 环境要求
+### 方式 1: Docker（推荐）
+
+使用 Docker 是最简单的方式，无需手动配置 Python 环境：
+
+```bash
+# 快速启动（自动配置）
+./docker-quickstart.sh
+
+# 或使用 Docker Compose
+docker-compose up
+```
+
+详细说明请参考 [Docker 使用指南](DOCKER_USAGE.md)
+
+### 方式 2: 本地安装
+
+#### 环境要求
 
 - Python 3.8 或更高版本
 - pip 包管理器
 
-### 安装步骤
+#### 安装步骤
 
 1. **克隆项目**
 
