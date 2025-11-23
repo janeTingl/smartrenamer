@@ -2,6 +2,58 @@
 
 本文档记录 SmartRenamer 项目的所有重要更改。
 
+## [0.5.1] - 2024-11-23
+
+### 新增功能
+
+#### Docker 容器化支持 🐳
+
+- **完整的 Docker 支持**
+  - 多阶段构建优化镜像大小
+  - 支持 Linux amd64/arm64 多架构
+  - GUI 模式（X11 转发）和 CLI 模式
+  - 智能入口脚本（docker-entrypoint.sh）
+  - 自动配置和环境检测
+
+- **Docker Compose 配置**
+  - 简化的启动流程
+  - 卷挂载配置（媒体、配置、缓存）
+  - 环境变量管理
+  - 持久化数据支持
+  - docker-compose.override.yml 示例
+
+- **便捷工具**
+  - Makefile（简化 Docker 命令）
+  - docker-quickstart.sh（自动配置脚本）
+  - test-docker.sh（配置验证脚本）
+  - .env.example（环境变量模板）
+
+- **完整文档**
+  - DOCKER_USAGE.md（553 行详细使用指南）
+  - 平台特定说明（Linux/macOS/Windows）
+  - 多平台构建教程
+  - 常见问题解答
+
+- **CI/CD 集成**
+  - GitHub Actions 自动构建工作流
+  - 多平台镜像构建
+  - 安全扫描（Trivy）
+  - 镜像大小检查
+  - Docker Hub 发布支持
+
+### 改进
+
+- 更新 README.md 添加 Docker 安装方式
+- 更新 .gitignore 添加 Docker 相关规则
+- Dockerfile 优化（多阶段构建）
+- 支持 X11 GUI 在容器中运行
+
+### 文档
+
+- 新增 DOCKER_USAGE.md（Docker 完整使用指南）
+- 添加平台特定配置说明
+- 添加故障排除指南
+
 ## [0.5.0] - 2024-11-22
 
 ### 新增功能

@@ -1,0 +1,66 @@
+# docker-compose.override.yml 示例
+# 
+# 此文件展示如何为不同平台自定义 Docker Compose 配置
+# 使用方法：
+#   1. 复制此文件为 docker-compose.override.yml
+#   2. 根据你的平台和需求修改配置
+#   3. docker-compose 会自动合并 docker-compose.yml 和 override 文件
+#
+# 注意：docker-compose.override.yml 已在 .gitignore 中，不会提交到版本控制
+
+version: '3.8'
+
+services:
+  smartrenamer:
+    # ========================================
+    # Linux 平台配置
+    # ========================================
+    environment:
+      # 设置你的 TMDB API Key
+      TMDB_API_KEY: "your_actual_api_key_here"
+      
+      # X11 显示
+      DISPLAY: ":0"
+    
+    volumes:
+      # 替换为你的媒体目录路径
+      - /home/username/Videos:/data/media
+      - /home/username/Movies:/data/movies
+    
+    # ========================================
+    # macOS 平台配置（使用 XQuartz）
+    # ========================================
+    # environment:
+    #   TMDB_API_KEY: "your_actual_api_key_here"
+    #   DISPLAY: "host.docker.internal:0"
+    # 
+    # volumes:
+    #   - /Users/username/Movies:/data/media
+    #   - /tmp/.X11-unix:/tmp/.X11-unix
+    # 
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"
+    
+    # ========================================
+    # Windows (WSL2) 平台配置
+    # ========================================
+    # environment:
+    #   TMDB_API_KEY: "your_actual_api_key_here"
+    #   # Windows 通常使用 CLI 模式
+    # 
+    # volumes:
+    #   - /mnt/c/Users/username/Videos:/data/media
+    # 
+    # # 默认使用 CLI 模式
+    # command: cli
+    
+    # ========================================
+    # 开发模式配置
+    # ========================================
+    # volumes:
+    #   # 挂载源代码（实时修改）
+    #   - ./src:/app/src
+    #   - ./examples:/app/examples
+    # 
+    # # 覆盖入口点，进入 bash 调试
+    # command: bash

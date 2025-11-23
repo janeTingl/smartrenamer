@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="smartrenamer",
-    version="0.1.0",
+    version="0.5.1",
     description="智能媒体文件重命名工具",
     author="SmartRenamer Team",
     python_requires=">=3.8",

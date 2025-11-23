@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  smartrenamer:
+    # 构建配置
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # 多平台构建支持
+      platforms:
+        - linux/amd64
+        - linux/arm64
+    
+    # 镜像名称
+    image: smartrenamer:latest
+    
+    # 容器名称
+    container_name: smartrenamer
+    
+    # 环境变量
+    environment:
+      # TMDB API Key（必需）
+      # 方式1: 直接设置（不推荐，安全性低）
+      # TMDB_API_KEY: your_api_key_here
+      
+      # 方式2: 从宿主机环境变量读取（推荐）
+      - TMDB_API_KEY=${TMDB_API_KEY}
+      
+      # X11 显示（GUI 模式）
+      - DISPLAY=${DISPLAY:-:0}
+      
+      # Qt 平台插件
+      - QT_QPA_PLATFORM=${QT_QPA_PLATFORM:-xcb}
+      
+      # 语言设置
+      - LANG=zh_CN.UTF-8
+      - LC_ALL=zh_CN.UTF-8
+    
+    # 卷挂载
+    volumes:
+      # 媒体文件目录（修改为你的实际路径）
+      - ${MEDIA_PATH:-./media}:/data/media
+      
+      # 配置文件目录（持久化）
+      - smartrenamer-config:/data/config
+      
+      # 缓存目录（持久化）
+      - smartrenamer-cache:/data/cache
+      
+      # X11 套接字（GUI 模式需要）
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      
+      # 可选：挂载示例脚本目录
+      # - ./examples:/app/examples
+    
+    # 网络模式（使用主机网络以支持 X11）
+    network_mode: host
+    
+    # 安全选项
+    security_opt:
+      - seccomp:unconfined
+    
+    # IPC 模式（GUI 需要）
+    ipc: host
+    
+    # 设备访问（可选，某些 GPU 加速场景）
+    # devices:
+    #   - /dev/dri:/dev/dri
+    
+    # 重启策略
+    restart: unless-stopped
+    
+    # 标准输入/TTY（交互模式）
+    stdin_open: true
+    tty: true
+    
+    # 默认命令（可覆盖）
+    # command: gui
+
+# 持久化卷定义
+volumes:
+  smartrenamer-config:
+    name: smartrenamer-config
+    driver: local
+  
+  smartrenamer-cache:
+    name: smartrenamer-cache
+    driver: local
+
+# 网络定义（如果不使用 host 网络）
+# networks:
+#   smartrenamer-net:
+#     driver: bridge
