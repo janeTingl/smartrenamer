@@ -5,9 +5,11 @@
 """
 import os
 import logging
+import hashlib
 from pathlib import Path
-from typing import List, Optional, Callable
+from typing import List, Optional, Callable, Iterator, Tuple
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .models import MediaFile, MediaType
 from ..utils.file_utils import (
@@ -48,6 +50,8 @@ class FileScanner:
         exclude_dirs: Optional[List[str]] = None,
         min_file_size: int = 10 * 1024 * 1024,  # 10 MB
         max_depth: Optional[int] = None,
+        max_workers: int = 4,
+        batch_size: int = 50,
     ):
         """
         初始化文件扫描器
@@ -57,11 +61,15 @@ class FileScanner:
             exclude_dirs: 要排除的目录名称列表
             min_file_size: 最小文件大小（字节）
             max_depth: 最大扫描深度，None 表示无限制
+            max_workers: 并行处理的最大工作线程数
+            batch_size: 批次大小（流式处理）
         """
         self.supported_extensions = supported_extensions or self.DEFAULT_EXTENSIONS
         self.exclude_dirs = exclude_dirs or self.DEFAULT_EXCLUDE_DIRS
         self.min_file_size = min_file_size
         self.max_depth = max_depth
+        self.max_workers = max_workers
+        self.batch_size = batch_size
         
         # 统计信息
         self.扫描文件总数 = 0
@@ -117,6 +125,195 @@ class FileScanner:
         )
         
         return media_files
+    
+    def scan_iter(
+        self,
+        directory: Path,
+        progress_callback: Optional[Callable[[str, int, int], None]] = None
+    ) -> Iterator[List[MediaFile]]:
+        """
+        流式扫描目录并批量返回媒体文件（生成器）
+        
+        Args:
+            directory: 要扫描的目录路径
+            progress_callback: 进度回调函数(当前文件, 已扫描数, 找到数)
+            
+        Yields:
+            List[MediaFile]: 批量找到的媒体文件
+        """
+        if isinstance(directory, str):
+            directory = Path(directory)
+        
+        if not directory.exists():
+            logger.error(f"目录不存在: {directory}")
+            raise FileNotFoundError(f"目录不存在: {directory}")
+        
+        if not directory.is_dir():
+            logger.error(f"路径不是目录: {directory}")
+            raise NotADirectoryError(f"路径不是目录: {directory}")
+        
+        # 重置统计信息
+        self.扫描文件总数 = 0
+        self.找到媒体文件数 = 0
+        self.跳过文件数 = 0
+        
+        logger.info(f"开始流式扫描目录: {directory}")
+        
+        # 收集所有需要扫描的子目录
+        subdirs = self._collect_subdirs(directory, depth=0)
+        logger.info(f"找到 {len(subdirs)} 个子目录")
+        
+        # 使用线程池并行处理子目录
+        batch = []
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            # 提交所有子目录的扫描任务
+            future_to_dir = {
+                executor.submit(self._scan_directory, subdir, progress_callback): subdir
+                for subdir in subdirs
+            }
+            
+            # 处理完成的任务
+            for future in as_completed(future_to_dir):
+                subdir = future_to_dir[future]
+                try:
+                    media_files = future.result()
+                    if media_files:
+                        batch.extend(media_files)
+                        
+                        # 当批次达到指定大小时，yield 输出
+                        while len(batch) >= self.batch_size:
+                            yield batch[:self.batch_size]
+                            batch = batch[self.batch_size:]
+                            
+                except Exception as e:
+                    logger.error(f"处理子目录 {subdir} 失败: {e}")
+        
+        # 输出剩余的批次
+        if batch:
+            yield batch
+        
+        logger.info(
+            f"流式扫描完成: 总文件数={self.扫描文件总数}, "
+            f"媒体文件数={self.找到媒体文件数}, "
+            f"跳过文件数={self.跳过文件数}"
+        )
+    
+    def _collect_subdirs(self, directory: Path, depth: int) -> List[Path]:
+        """
+        收集所有需要扫描的子目录（包括当前目录）
+        
+        Args:
+            directory: 当前目录
+            depth: 当前深度
+            
+        Returns:
+            List[Path]: 子目录列表
+        """
+        subdirs = [directory]
+        
+        # 检查深度限制
+        if self.max_depth is not None and depth >= self.max_depth:
+            return subdirs
+        
+        try:
+            for entry in os.scandir(directory):
+                try:
+                    if entry.is_dir(follow_symlinks=False):
+                        # 检查是否应该排除该目录
+                        if entry.name in self.exclude_dirs:
+                            logger.debug(f"跳过排除目录: {entry.path}")
+                            continue
+                        
+                        # 递归收集子目录
+                        subdirs.extend(
+                            self._collect_subdirs(Path(entry.path), depth + 1)
+                        )
+                except (PermissionError, OSError) as e:
+                    logger.warning(f"无法访问: {entry.path}, 错误: {e}")
+                    continue
+        except (PermissionError, OSError) as e:
+            logger.warning(f"无法扫描目录: {directory}, 错误: {e}")
+        
+        return subdirs
+    
+    def _scan_directory(
+        self,
+        directory: Path,
+        progress_callback: Optional[Callable[[str, int, int], None]] = None
+    ) -> List[MediaFile]:
+        """
+        扫描单个目录（非递归）
+        
+        Args:
+            directory: 目录路径
+            progress_callback: 进度回调函数
+            
+        Returns:
+            List[MediaFile]: 找到的媒体文件列表
+        """
+        media_files = []
+        
+        try:
+            for entry in os.scandir(directory):
+                try:
+                    # 只处理文件
+                    if entry.is_file(follow_symlinks=False):
+                        # 先做轻量级 stat 过滤
+                        if not self._quick_filter(entry):
+                            self.跳过文件数 += 1
+                            continue
+                        
+                        self.扫描文件总数 += 1
+                        
+                        # 调用进度回调
+                        if progress_callback:
+                            progress_callback(
+                                entry.path,
+                                self.扫描文件总数,
+                                self.找到媒体文件数
+                            )
+                        
+                        # 完整处理文件
+                        media_file = self._process_file(Path(entry.path))
+                        if media_file:
+                            media_files.append(media_file)
+                            self.找到媒体文件数 += 1
+                        else:
+                            self.跳过文件数 += 1
+                
+                except (PermissionError, OSError) as e:
+                    logger.warning(f"无法访问: {entry.path}, 错误: {e}")
+                    continue
+        
+        except (PermissionError, OSError) as e:
+            logger.warning(f"无法扫描目录: {directory}, 错误: {e}")
+        
+        return media_files
+    
+    def _quick_filter(self, entry: os.DirEntry) -> bool:
+        """
+        快速过滤文件（基于扩展名和大小，避免完整 stat）
+        
+        Args:
+            entry: 目录项
+            
+        Returns:
+            bool: 是否通过过滤
+        """
+        # 检查扩展名
+        ext = os.path.splitext(entry.name)[1].lower()
+        if ext not in self.supported_extensions:
+            return False
+        
+        # 检查文件大小（使用 entry.stat() 而不是 Path.stat()）
+        try:
+            stat_info = entry.stat(follow_symlinks=False)
+            if stat_info.st_size < self.min_file_size:
+                return False
+        except (PermissionError, OSError):
+            return False
+        
+        return True
     
     def _scan_recursive(
         self,
@@ -327,3 +524,27 @@ class FileScanner:
             "找到媒体文件数": self.找到媒体文件数,
             "跳过文件数": self.跳过文件数,
         }
+    
+    @staticmethod
+    def calculate_file_hash(file_path: Path, chunk_size: int = 8192) -> str:
+        """
+        计算文件哈希值（用于增量缓存）
+        
+        Args:
+            file_path: 文件路径
+            chunk_size: 读取块大小
+            
+        Returns:
+            str: 文件哈希值（SHA256）
+        """
+        sha256 = hashlib.sha256()
+        try:
+            with open(file_path, 'rb') as f:
+                # 只读取文件的前 1MB 来计算哈希（性能优化）
+                chunk = f.read(1024 * 1024)
+                if chunk:
+                    sha256.update(chunk)
+            return sha256.hexdigest()
+        except Exception as e:
+            logger.warning(f"计算文件哈希失败 {file_path}: {e}")
+            return ""
