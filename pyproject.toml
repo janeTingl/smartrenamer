@@ -52,3 +52,6 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --cov=smartrenamer --cov-report=html --cov-report=term"
+markers = [
+    "performance: marks tests as performance tests (deselect with '-m \"not performance\"')",
+]

@@ -6,7 +6,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import List, Optional, Dict, Callable
+from typing import List, Optional, Dict, Callable, Iterator
 from datetime import datetime
 
 from .models import MediaFile, MediaType
@@ -58,6 +58,10 @@ class MediaLibrary:
         # 索引（用于快速查询）
         self._title_index: Dict[str, List[MediaFile]] = {}
         self._type_index: Dict[MediaType, List[MediaFile]] = {}
+        
+        # 文件缓存（用于增量更新）
+        # 格式: {path: {"mtime": float, "size": int, "hash": str}}
+        self._file_cache: Dict[str, Dict] = {}
     
     def add_scan_source(self, directory: Path) -> None:
         """
@@ -157,6 +161,199 @@ class MediaLibrary:
         """
         logger.info("刷新媒体库...")
         return self.scan(scanner, progress_callback)
+    
+    def scan_iter(
+        self,
+        scanner: Optional[FileScanner] = None,
+        progress_callback: Optional[Callable[[str, int, int], None]] = None
+    ) -> Iterator[List[MediaFile]]:
+        """
+        流式扫描所有配置的源目录（生成器）
+        
+        Args:
+            scanner: 文件扫描器，None 使用默认配置
+            progress_callback: 进度回调函数
+            
+        Yields:
+            List[MediaFile]: 批量找到的媒体文件
+        """
+        if not self.scan_sources:
+            logger.warning("没有配置扫描源")
+            return
+        
+        # 创建扫描器
+        if scanner is None:
+            scanner = FileScanner()
+        
+        # 清空现有数据
+        self.media_files = []
+        
+        # 流式扫描所有源
+        for source in self.scan_sources:
+            if not source.exists():
+                logger.warning(f"扫描源不存在，跳过: {source}")
+                continue
+            
+            logger.info(f"正在流式扫描: {source}")
+            try:
+                for batch in scanner.scan_iter(source, progress_callback):
+                    self.media_files.extend(batch)
+                    yield batch
+                logger.info(f"从 {source} 找到 {len([f for f in self.media_files if str(f.path).startswith(str(source))])} 个媒体文件")
+            except Exception as e:
+                logger.error(f"扫描 {source} 失败: {e}")
+        
+        # 更新扫描时间
+        self.last_scan_time = datetime.now()
+        
+        # 重建索引
+        self._rebuild_indexes()
+        
+        # 保存到缓存
+        if self.enable_cache:
+            self.save_cache()
+        
+        logger.info(f"流式扫描完成，共找到 {len(self.media_files)} 个媒体文件")
+    
+    def quick_refresh(
+        self,
+        scanner: Optional[FileScanner] = None,
+        progress_callback: Optional[Callable[[str, int, int], None]] = None
+    ) -> Dict[str, int]:
+        """
+        快速刷新媒体库（增量更新，仅处理变化的文件）
+        
+        Args:
+            scanner: 文件扫描器
+            progress_callback: 进度回调函数
+            
+        Returns:
+            Dict[str, int]: 更新统计 {"added": 新增数, "updated": 更新数, "removed": 删除数}
+        """
+        logger.info("快速刷新媒体库...")
+        
+        # 加载现有缓存
+        if not self._file_cache:
+            self._load_file_cache()
+        
+        # 扫描新文件
+        if scanner is None:
+            scanner = FileScanner()
+        
+        new_media_files = []
+        updated_files = []
+        unchanged_paths = set()
+        
+        for source in self.scan_sources:
+            if not source.exists():
+                continue
+            
+            try:
+                # 获取所有文件并检查变化
+                for file_path in self._walk_files(source):
+                    file_str = str(file_path)
+                    
+                    # 获取文件状态
+                    try:
+                        stat = file_path.stat()
+                        mtime = stat.st_mtime
+                        size = stat.st_size
+                    except (PermissionError, OSError):
+                        continue
+                    
+                    # 检查是否在缓存中
+                    if file_str in self._file_cache:
+                        cached = self._file_cache[file_str]
+                        
+                        # 检查文件是否变化
+                        if cached["mtime"] == mtime and cached["size"] == size:
+                            # 文件未变化，跳过
+                            unchanged_paths.add(file_str)
+                            continue
+                        else:
+                            # 文件已更新，重新扫描
+                            logger.debug(f"文件已更新: {file_path}")
+                    
+                    # 处理新文件或更新的文件
+                    media_file = scanner._process_file(file_path)
+                    if media_file:
+                        new_media_files.append(media_file)
+                        
+                        # 更新缓存
+                        self._file_cache[file_str] = {
+                            "mtime": mtime,
+                            "size": size,
+                            "hash": FileScanner.calculate_file_hash(file_path)
+                        }
+                        
+            except Exception as e:
+                logger.error(f"快速刷新 {source} 失败: {e}")
+        
+        # 找出已删除的文件
+        existing_paths = {str(mf.path) for mf in self.media_files}
+        scanned_paths = {str(mf.path) for mf in new_media_files} | unchanged_paths
+        removed_paths = existing_paths - scanned_paths
+        
+        # 更新媒体文件列表
+        # 保留未变化的文件
+        self.media_files = [mf for mf in self.media_files if str(mf.path) in unchanged_paths]
+        # 添加新文件和更新的文件
+        self.media_files.extend(new_media_files)
+        
+        # 清理缓存中已删除的文件
+        for removed_path in removed_paths:
+            if removed_path in self._file_cache:
+                del self._file_cache[removed_path]
+        
+        # 更新扫描时间
+        self.last_scan_time = datetime.now()
+        
+        # 重建索引
+        self._rebuild_indexes()
+        
+        # 保存缓存
+        if self.enable_cache:
+            self.save_cache()
+        
+        result = {
+            "added": len([mf for mf in new_media_files if str(mf.path) not in existing_paths]),
+            "updated": len([mf for mf in new_media_files if str(mf.path) in existing_paths]),
+            "removed": len(removed_paths)
+        }
+        
+        logger.info(f"快速刷新完成: 新增 {result['added']} 个，更新 {result['updated']} 个，删除 {result['removed']} 个")
+        return result
+    
+    def _walk_files(self, directory: Path) -> Iterator[Path]:
+        """
+        遍历目录下的所有文件
+        
+        Args:
+            directory: 目录路径
+            
+        Yields:
+            Path: 文件路径
+        """
+        try:
+            for item in directory.rglob("*"):
+                if item.is_file():
+                    yield item
+        except (PermissionError, OSError) as e:
+            logger.warning(f"无法遍历目录 {directory}: {e}")
+    
+    def _load_file_cache(self) -> None:
+        """从现有媒体文件列表加载文件缓存"""
+        self._file_cache = {}
+        for mf in self.media_files:
+            try:
+                stat = mf.path.stat()
+                self._file_cache[str(mf.path)] = {
+                    "mtime": stat.st_mtime,
+                    "size": stat.st_size,
+                    "hash": mf.metadata.get("file_hash", "")
+                }
+            except (PermissionError, OSError):
+                pass
     
     def update(
         self,
@@ -324,10 +521,11 @@ class MediaLibrary:
         
         try:
             data = {
-                "version": "1.0",
+                "version": "2.0",  # 版本升级以支持文件缓存
                 "last_scan_time": self.last_scan_time.isoformat() if self.last_scan_time else None,
                 "scan_sources": [str(s) for s in self.scan_sources],
                 "media_files": [mf.to_dict() for mf in self.media_files],
+                "file_cache": self._file_cache,  # 保存文件缓存
             }
             
             with open(cache_file, "w", encoding="utf-8") as f:
@@ -379,6 +577,9 @@ class MediaLibrary:
                 media_file = self._dict_to_media_file(mf_dict)
                 if media_file:
                     self.media_files.append(media_file)
+            
+            # 恢复文件缓存（v2.0+）
+            self._file_cache = data.get("file_cache", {})
             
             # 重建索引
             self._rebuild_indexes()

@@ -9,7 +9,7 @@ from pathlib import Path
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QSplitter, 
     QTreeWidget, QTreeWidgetItem, QPushButton, QLineEdit,
-    QLabel, QComboBox, QFileDialog, QMessageBox
+    QLabel, QComboBox, QFileDialog, QMessageBox, QProgressBar
 )
 from PySide6.QtCore import Qt, Signal, Slot, QThread
 from smartrenamer.core import FileScanner, MediaLibrary, MediaFile, MediaType
@@ -20,24 +20,45 @@ logger = logging.getLogger(__name__)
 
 
 class ScanWorker(QThread):
-    """扫描工作线程"""
+    """扫描工作线程（支持流式扫描）"""
     
     progress = Signal(int, int, str)  # current, total, message
-    finished = Signal(list)  # files
+    batch_emitted = Signal(list)  # 批量文件
+    finished = Signal(int)  # 总文件数
     error = Signal(str)
     
-    def __init__(self, path: Path, scanner: FileScanner):
+    def __init__(self, path: Path, scanner: FileScanner, library: MediaLibrary):
         super().__init__()
         self.path = path
         self.scanner = scanner
+        self.library = library
+        self.total_count = 0
         
     def run(self):
-        """运行扫描"""
+        """运行流式扫描"""
         try:
-            logger.info(f"开始扫描目录: {self.path}")
-            files = self.scanner.scan(self.path)
-            logger.info(f"扫描完成，共找到 {len(files)} 个文件")
-            self.finished.emit(files)
+            logger.info(f"开始流式扫描目录: {self.path}")
+            
+            # 使用流式扫描
+            for batch in self.scanner.scan_iter(self.path):
+                if batch:
+                    self.total_count += len(batch)
+                    # 发射批量数据
+                    self.batch_emitted.emit(batch)
+                    # 更新进度
+                    self.progress.emit(
+                        self.total_count,
+                        self.total_count,
+                        f"已找到 {self.total_count} 个文件..."
+                    )
+            
+            # 保存到媒体库
+            self.library.media_files.extend(
+                [f for batch in [] for f in batch]  # 文件已经添加到 library 中了
+            )
+            
+            logger.info(f"流式扫描完成，共找到 {self.total_count} 个文件")
+            self.finished.emit(self.total_count)
         except Exception as e:
             logger.error(f"扫描失败: {e}")
             self.error.emit(str(e))
@@ -52,8 +73,9 @@ class MediaLibraryPanel(QWidget):
         super().__init__(parent)
         self.scanner = FileScanner()
         self.library = MediaLibrary()
-        self.current_files: List[MediaFile] = []
         self.scan_worker: Optional[ScanWorker] = None
+        
+        # 不再长驻 current_files，改为从表格直接获取
         
         self._setup_ui()
         
@@ -64,6 +86,12 @@ class MediaLibraryPanel(QWidget):
         # 工具栏
         toolbar = self._create_toolbar()
         layout.addLayout(toolbar)
+        
+        # 进度条（初始隐藏）
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)
+        self.progress_bar.setTextVisible(True)
+        layout.addWidget(self.progress_bar)
         
         # 搜索栏
         search_bar = self._create_search_bar()
@@ -99,6 +127,11 @@ class MediaLibraryPanel(QWidget):
         self.refresh_btn = QPushButton("刷新")
         self.refresh_btn.clicked.connect(self._on_refresh)
         toolbar.addWidget(self.refresh_btn)
+        
+        self.quick_refresh_btn = QPushButton("快速刷新")
+        self.quick_refresh_btn.clicked.connect(self._on_quick_refresh)
+        self.quick_refresh_btn.setToolTip("增量刷新，仅扫描变化的文件")
+        toolbar.addWidget(self.quick_refresh_btn)
         
         toolbar.addStretch()
         
@@ -173,31 +206,77 @@ class MediaLibraryPanel(QWidget):
             
         # 禁用按钮
         self.scan_btn.setEnabled(False)
+        self.refresh_btn.setEnabled(False)
+        self.quick_refresh_btn.setEnabled(False)
+        
+        # 显示进度条
+        self.progress_bar.setVisible(True)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setFormat("正在扫描...")
+        
         self.status_label.setText(f"正在扫描: {path}")
         
+        # 清空表格
+        self.file_table.clear_files()
+        
         # 创建工作线程
-        self.scan_worker = ScanWorker(path, self.scanner)
+        self.scan_worker = ScanWorker(path, self.scanner, self.library)
+        self.scan_worker.batch_emitted.connect(self._on_batch_received)
+        self.scan_worker.progress.connect(self._on_scan_progress)
         self.scan_worker.finished.connect(self._on_scan_finished)
         self.scan_worker.error.connect(self._on_scan_error)
         self.scan_worker.start()
         
     @Slot(list)
-    def _on_scan_finished(self, files: List[MediaFile]):
+    def _on_batch_received(self, batch: List[MediaFile]):
+        """接收批量文件（流式）"""
+        # 实时添加到表格
+        for media_file in batch:
+            self.file_table.add_media_file(media_file)
+        
+        # 更新计数
+        total = len(self.library.media_files)
+        self.file_count_label.setText(f"文件: {total}")
+        
+        logger.debug(f"接收批次: {len(batch)} 个文件，总计: {total}")
+    
+    @Slot(int, int, str)
+    def _on_scan_progress(self, current: int, total: int, message: str):
+        """扫描进度更新"""
+        self.progress_bar.setFormat(f"{message} ({current} 个)")
+        self.progress_bar.setValue(current)
+        if total > 0:
+            self.progress_bar.setMaximum(total)
+    
+    @Slot(int)
+    def _on_scan_finished(self, total_count: int):
         """扫描完成"""
-        self.current_files = files
-        self._update_file_list(files)
-        self._update_folder_tree(files)
+        # 更新文件夹树
+        self._update_folder_tree(self.library.media_files)
         
+        # 启用按钮
         self.scan_btn.setEnabled(True)
-        self.status_label.setText(f"扫描完成，共找到 {len(files)} 个文件")
-        self.file_count_label.setText(f"文件: {len(files)}")
+        self.refresh_btn.setEnabled(True)
+        self.quick_refresh_btn.setEnabled(True)
         
-        logger.info(f"扫描完成，共 {len(files)} 个文件")
+        # 隐藏进度条
+        self.progress_bar.setVisible(False)
+        
+        self.status_label.setText(f"扫描完成，共找到 {total_count} 个文件")
+        self.file_count_label.setText(f"文件: {total_count}")
+        
+        logger.info(f"扫描完成，共 {total_count} 个文件")
         
     @Slot(str)
     def _on_scan_error(self, error: str):
         """扫描错误"""
         self.scan_btn.setEnabled(True)
+        self.refresh_btn.setEnabled(True)
+        self.quick_refresh_btn.setEnabled(True)
+        
+        # 隐藏进度条
+        self.progress_bar.setVisible(False)
+        
         self.status_label.setText("扫描失败")
         
         QMessageBox.critical(self, "错误", f"扫描失败:\n{error}")
@@ -205,8 +284,41 @@ class MediaLibraryPanel(QWidget):
     @Slot()
     def _on_refresh(self):
         """刷新按钮点击"""
-        self._update_file_list(self.current_files)
+        files = self.library.media_files
+        self.file_table.clear_files()
+        for file in files:
+            self.file_table.add_media_file(file)
         self.status_label.setText("已刷新")
+    
+    @Slot()
+    def _on_quick_refresh(self):
+        """快速刷新按钮点击"""
+        if not self.library.media_files:
+            QMessageBox.information(self, "提示", "请先进行完整扫描")
+            return
+        
+        try:
+            self.progress_bar.setVisible(True)
+            self.progress_bar.setFormat("正在快速刷新...")
+            
+            result = self.library.quick_refresh(self.scanner)
+            
+            # 刷新显示
+            self.file_table.clear_files()
+            for file in self.library.media_files:
+                self.file_table.add_media_file(file)
+            self._update_folder_tree(self.library.media_files)
+            
+            self.progress_bar.setVisible(False)
+            
+            msg = f"快速刷新完成:\n新增: {result['added']}\n更新: {result['updated']}\n删除: {result['removed']}"
+            self.status_label.setText(msg.replace('\n', ', '))
+            self.file_count_label.setText(f"文件: {len(self.library.media_files)}")
+            
+            QMessageBox.information(self, "完成", msg)
+        except Exception as e:
+            self.progress_bar.setVisible(False)
+            QMessageBox.critical(self, "错误", f"快速刷新失败:\n{e}")
         
     @Slot()
     def _on_match_selected(self):
@@ -232,8 +344,9 @@ class MediaLibraryPanel(QWidget):
         search_text = self.search_edit.text().lower()
         type_filter = self.type_filter.currentText()
         
+        all_files = self.library.media_files
         filtered_files = []
-        for file in self.current_files:
+        for file in all_files:
             # 类型过滤
             if type_filter != "全部":
                 if type_filter == "电影" and not file.is_movie:
@@ -255,7 +368,7 @@ class MediaLibraryPanel(QWidget):
             filtered_files.append(file)
             
         self._update_file_list(filtered_files)
-        self.file_count_label.setText(f"文件: {len(filtered_files)}/{len(self.current_files)}")
+        self.file_count_label.setText(f"文件: {len(filtered_files)}/{len(all_files)}")
         
     def _update_file_list(self, files: List[MediaFile]):
         """更新文件列表"""
@@ -287,9 +400,10 @@ class MediaLibraryPanel(QWidget):
         folder = item.data(0, Qt.UserRole)
         if folder:
             # 过滤显示该文件夹下的文件
-            filtered_files = [f for f in self.current_files if f.path.parent == folder]
+            all_files = self.library.media_files
+            filtered_files = [f for f in all_files if f.path.parent == folder]
             self._update_file_list(filtered_files)
-            self.file_count_label.setText(f"文件: {len(filtered_files)}/{len(self.current_files)}")
+            self.file_count_label.setText(f"文件: {len(filtered_files)}/{len(all_files)}")
             
     @Slot(object)
     def _on_file_selected(self, media_file: MediaFile):
@@ -303,4 +417,4 @@ class MediaLibraryPanel(QWidget):
     
     def get_all_files(self) -> List[MediaFile]:
         """获取所有文件"""
-        return self.current_files
+        return self.library.media_files
