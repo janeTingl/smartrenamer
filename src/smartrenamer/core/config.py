@@ -58,6 +58,10 @@ class Config:
     log_level: str = "INFO"
     log_to_file: bool = True
     
+    # 存储配置
+    storage_type: str = "local"  # 存储类型：local, 115, 123
+    storage_configs: dict = None  # 各个存储的配置字典
+    
     def __post_init__(self):
         """初始化后处理"""
         if self.supported_extensions is None:
@@ -77,6 +81,20 @@ class Config:
         if self.rename_worker_count <= 0:
             cpu_count = os.cpu_count() or 4
             self.rename_worker_count = min(max(cpu_count, 1), 8)
+        
+        # 初始化存储配置
+        if self.storage_configs is None:
+            self.storage_configs = {
+                "local": {},
+                "115": {
+                    "cookie": "",
+                    "user_id": ""
+                },
+                "123": {
+                    "access_token": "",
+                    "refresh_token": ""
+                }
+            }
     
     @classmethod
     def load(cls, config_path: Optional[Path] = None) -> "Config":
