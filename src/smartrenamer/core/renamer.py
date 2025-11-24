@@ -5,6 +5,7 @@
 """
 import re
 import json
+import threading
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Tuple
 from datetime import datetime
@@ -458,6 +459,8 @@ class 重命名器:
         self.创建备份 = 创建备份
         self._历史记录: List[重命名历史记录] = []
         self._jinja_环境 = self._创建_jinja_环境()
+        self._历史锁 = threading.Lock()  # 保护历史记录的线程锁
+        self._目录锁 = threading.Lock()  # 保护目录创建的线程锁
     
     def _创建_jinja_环境(self) -> Environment:
         """创建 Jinja2 环境"""
@@ -578,8 +581,9 @@ class 重命名器:
                 新路径 = 父目录 / f"{新文件名_无扩展名}{扩展名}"
                 计数 += 1
         
-        # 创建目标目录（如果需要）
-        新路径.parent.mkdir(parents=True, exist_ok=True)
+        # 创建目标目录（如果需要）- 使用锁保护
+        with self._目录锁:
+            新路径.parent.mkdir(parents=True, exist_ok=True)
         
         # 执行重命名
         try:
@@ -590,14 +594,15 @@ class 重命名器:
             媒体文件.new_name = 新路径.name
             媒体文件.rename_status = "success"
             
-            # 记录历史
+            # 记录历史 - 使用锁保护
             if self.创建备份:
                 历史 = 重命名历史记录(
                     原始路径=原始路径,
                     新路径=新路径,
                     成功=True,
                 )
-                self._历史记录.append(历史)
+                with self._历史锁:
+                    self._历史记录.append(历史)
             
             return True, None
             
@@ -606,7 +611,7 @@ class 重命名器:
             媒体文件.rename_status = "failed"
             媒体文件.error_message = 错误信息
             
-            # 记录失败历史
+            # 记录失败历史 - 使用锁保护
             if self.创建备份:
                 历史 = 重命名历史记录(
                     原始路径=原始路径,
@@ -614,7 +619,8 @@ class 重命名器:
                     成功=False,
                     错误信息=错误信息,
                 )
-                self._历史记录.append(历史)
+                with self._历史锁:
+                    self._历史记录.append(历史)
             
             return False, 错误信息
     
@@ -717,11 +723,13 @@ class 重命名器:
     
     def 获取历史记录(self) -> List[重命名历史记录]:
         """获取重命名历史记录"""
-        return self._历史记录.copy()
+        with self._历史锁:
+            return self._历史记录.copy()
     
     def 清空历史记录(self):
         """清空历史记录"""
-        self._历史记录.clear()
+        with self._历史锁:
+            self._历史记录.clear()
     
     def 保存历史到文件(self, 文件路径: Path) -> bool:
         """
@@ -734,9 +742,12 @@ class 重命名器:
             bool: 是否保存成功
         """
         try:
-            文件路径.parent.mkdir(parents=True, exist_ok=True)
+            with self._目录锁:
+                文件路径.parent.mkdir(parents=True, exist_ok=True)
             
-            历史数据 = [历史.to_dict() for 历史 in self._历史记录]
+            with self._历史锁:
+                历史数据 = [历史.to_dict() for 历史 in self._历史记录]
+            
             with open(文件路径, 'w', encoding='utf-8') as f:
                 json.dump(历史数据, f, ensure_ascii=False, indent=2)
             
@@ -762,7 +773,8 @@ class 重命名器:
             with open(文件路径, 'r', encoding='utf-8') as f:
                 历史数据 = json.load(f)
             
-            self._历史记录 = [重命名历史记录.from_dict(数据) for 数据 in 历史数据]
+            with self._历史锁:
+                self._历史记录 = [重命名历史记录.from_dict(数据) for 数据 in 历史数据]
             
             return True
         except Exception as e:

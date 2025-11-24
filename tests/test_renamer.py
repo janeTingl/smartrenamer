@@ -663,3 +663,167 @@ class Test带目录重命名:
         assert "绝命毒师" in 新文件.parts
         assert "Season 01" in 新文件.parts
         assert "S01E01" in 新文件.name
+
+
+class Test并行重命名:
+    """测试并行重命名功能"""
+    
+    def test_并行批量重命名_线程安全(self, tmp_path):
+        """测试并行批量重命名的线程安全性"""
+        import threading
+        from concurrent.futures import ThreadPoolExecutor
+        
+        # 创建多个测试文件
+        文件数量 = 50
+        媒体文件列表 = []
+        
+        for i in range(文件数量):
+            文件名 = f"movie_{i}.mkv"
+            文件路径 = tmp_path / 文件名
+            文件路径.write_text(f"test content {i}")
+            
+            媒体文件 = MediaFile(
+                path=文件路径,
+                original_name=文件名,
+                extension=".mkv",
+                size=1024,
+                media_type=MediaType.MOVIE,
+                title=f"电影{i}",
+                year=2020 + i % 10,
+            )
+            媒体文件列表.append(媒体文件)
+        
+        # 创建重命名规则
+        规则 = RenameRule(
+            name="测试规则",
+            template="{{ title }} ({{ year }})",
+            media_type=MediaType.MOVIE,
+        )
+        
+        # 并行重命名函数
+        def 重命名单个文件(媒体文件):
+            # 每个线程使用独立的 Renamer 实例
+            重命名器 = Renamer(预览模式=False, 创建备份=True)
+            成功, 错误 = 重命名器.重命名文件(媒体文件, 规则)
+            return 成功, 媒体文件
+        
+        # 使用线程池并行执行
+        成功数 = 0
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = [executor.submit(重命名单个文件, 文件) for 文件 in 媒体文件列表]
+            
+            for future in futures:
+                成功, 文件 = future.result()
+                if 成功:
+                    成功数 += 1
+        
+        # 验证所有文件都成功重命名
+        assert 成功数 == 文件数量
+        
+        # 验证所有新文件都存在
+        for 媒体文件 in 媒体文件列表:
+            assert 媒体文件.path.exists()
+            assert "电影" in 媒体文件.path.name
+            assert str(媒体文件.year) in 媒体文件.path.name
+    
+    def test_并行重命名_目录创建线程安全(self, tmp_path):
+        """测试并行重命名时目录创建的线程安全性"""
+        from concurrent.futures import ThreadPoolExecutor
+        
+        # 创建多个需要创建子目录的文件
+        文件数量 = 20
+        媒体文件列表 = []
+        
+        for i in range(文件数量):
+            文件名 = f"episode_{i}.mkv"
+            文件路径 = tmp_path / 文件名
+            文件路径.write_text(f"test content {i}")
+            
+            媒体文件 = MediaFile(
+                path=文件路径,
+                original_name=文件名,
+                extension=".mkv",
+                size=1024,
+                media_type=MediaType.TV_SHOW,
+                title="测试剧集",
+                season_number=1,
+                episode_number=i + 1,
+            )
+            媒体文件列表.append(媒体文件)
+        
+        # 使用会创建子目录的规则
+        规则 = RenameRule(
+            name="分季目录",
+            template="{{ title }}/Season {{ season|填充(2) }}/S{{ season|填充(2) }}E{{ episode|填充(2) }}",
+            media_type=MediaType.TV_SHOW,
+        )
+        
+        # 并行重命名
+        def 重命名单个文件(媒体文件):
+            重命名器 = Renamer(预览模式=False, 创建备份=True)
+            return 重命名器.重命名文件(媒体文件, 规则)
+        
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = [executor.submit(重命名单个文件, 文件) for 文件 in 媒体文件列表]
+            结果 = [future.result() for future in futures]
+        
+        # 验证所有操作成功
+        成功数 = sum(1 for 成功, _ in 结果 if 成功)
+        assert 成功数 == 文件数量
+        
+        # 验证目录结构正确
+        season_dir = tmp_path / "测试剧集" / "Season 01"
+        assert season_dir.exists()
+        assert len(list(season_dir.glob("*.mkv"))) == 文件数量
+    
+    def test_并行重命名_历史记录线程安全(self, tmp_path):
+        """测试并行重命名时历史记录的线程安全性"""
+        from concurrent.futures import ThreadPoolExecutor
+        
+        # 创建共享的 Renamer 实例来测试历史记录的线程安全
+        共享重命名器 = Renamer(预览模式=False, 创建备份=True)
+        
+        # 创建测试文件
+        文件数量 = 30
+        媒体文件列表 = []
+        
+        for i in range(文件数量):
+            文件名 = f"test_{i}.mkv"
+            文件路径 = tmp_path / 文件名
+            文件路径.write_text(f"content {i}")
+            
+            媒体文件 = MediaFile(
+                path=文件路径,
+                original_name=文件名,
+                extension=".mkv",
+                size=1024,
+                media_type=MediaType.MOVIE,
+                title=f"Movie{i}",
+                year=2020,
+            )
+            媒体文件列表.append(媒体文件)
+        
+        规则 = RenameRule(
+            name="简单规则",
+            template="{{ title }}",
+            media_type=MediaType.MOVIE,
+        )
+        
+        # 并行重命名使用同一个 Renamer 实例
+        def 重命名单个文件(媒体文件):
+            return 共享重命名器.重命名文件(媒体文件, 规则)
+        
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = [executor.submit(重命名单个文件, 文件) for 文件 in 媒体文件列表]
+            结果 = [future.result() for future in futures]
+        
+        # 验证所有操作成功
+        成功数 = sum(1 for 成功, _ in 结果 if 成功)
+        assert 成功数 == 文件数量
+        
+        # 验证历史记录数量正确（线程安全）
+        历史记录 = 共享重命名器.获取历史记录()
+        assert len(历史记录) == 文件数量
+        
+        # 验证所有历史记录都标记为成功
+        assert all(记录.成功 for 记录 in 历史记录)
