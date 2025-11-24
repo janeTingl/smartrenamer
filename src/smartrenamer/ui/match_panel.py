@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal, Slot, QThread
 from PySide6.QtGui import QFont
 from smartrenamer.core import MediaFile, Matcher, MatchResult, get_config
-from smartrenamer.api import EnhancedTMDBClient
+from smartrenamer.api import get_tmdb_client, get_cache_stats
 from smartrenamer.ui.widgets import ImageLabel
 
 
@@ -58,15 +58,15 @@ class MatchPanel(QWidget):
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
         
-        # 初始化 matcher
+        # 初始化 matcher（使用工厂模式）
         config = get_config()
         if not config.tmdb_api_key:
             logger.warning("TMDB API Key 未配置")
-            self.tmdb_client = None
             self.matcher = None
         else:
-            self.tmdb_client = EnhancedTMDBClient(config.tmdb_api_key, config.tmdb_language)
-            self.matcher = Matcher(self.tmdb_client)
+            # 使用工厂模式获取共享的 TMDB 客户端
+            self.matcher = Matcher()  # 不传入客户端，让它自动使用工厂
+            logger.info("MatchPanel 使用共享 TMDB 客户端")
             
         self.current_file: Optional[MediaFile] = None
         self.current_matches: List[MatchResult] = []
@@ -109,6 +109,11 @@ class MatchPanel(QWidget):
         toolbar.addWidget(self.file_label)
         
         toolbar.addStretch()
+        
+        # 缓存统计标签
+        self.cache_status_label = QLabel("缓存: -")
+        self.cache_status_label.setStyleSheet("QLabel { color: gray; font-size: 9px; }")
+        toolbar.addWidget(self.cache_status_label)
         
         self.auto_match_btn = QPushButton("自动匹配")
         self.auto_match_btn.clicked.connect(self._on_auto_match)
@@ -239,6 +244,9 @@ class MatchPanel(QWidget):
         """匹配结果"""
         logger.info(f"文件 {media_file.original_name} 找到 {len(results)} 个匹配")
         
+        # 更新缓存统计
+        self._update_cache_status()
+        
         # 如果有高置信度的自动确认匹配，直接应用
         if results and results[0].auto_confirm:
             logger.info(f"自动确认匹配: {results[0].title}")
@@ -348,3 +356,38 @@ class MatchPanel(QWidget):
         self.confirm_btn.setEnabled(False)
         self.skip_btn.setEnabled(False)
         self.auto_match_btn.setEnabled(False)
+    
+    def _update_cache_status(self):
+        """更新缓存统计状态"""
+        try:
+            stats = get_cache_stats()
+            
+            if not stats.get("enabled", False):
+                self.cache_status_label.setText("缓存: 禁用")
+                return
+            
+            hit_rate = stats.get("hit_rate", 0.0) * 100
+            total_hits = stats.get("total_hits", 0)
+            total_requests = stats.get("total_requests", 0)
+            
+            if total_requests == 0:
+                self.cache_status_label.setText("缓存: 无请求")
+            else:
+                status_text = f"缓存: {hit_rate:.0f}% 命中 ({total_hits}/{total_requests})"
+                self.cache_status_label.setText(status_text)
+                
+                # 根据命中率设置颜色
+                if hit_rate >= 80:
+                    color = "green"
+                elif hit_rate >= 50:
+                    color = "orange"
+                else:
+                    color = "red"
+                
+                self.cache_status_label.setStyleSheet(
+                    f"QLabel {{ color: {color}; font-size: 9px; font-weight: bold; }}"
+                )
+                
+        except Exception as e:
+            logger.warning(f"更新缓存状态失败: {e}")
+            self.cache_status_label.setText("缓存: 未知")

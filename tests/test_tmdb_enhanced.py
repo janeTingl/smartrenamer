@@ -3,6 +3,7 @@
 """
 import pytest
 import os
+import time
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 from smartrenamer.api.tmdb_client_enhanced import (
@@ -10,6 +11,8 @@ from smartrenamer.api.tmdb_client_enhanced import (
     增强TMDB客户端,
     缓存管理器
 )
+from smartrenamer.api.factory import TMDBClientFactory, get_tmdb_client, clear_tmdb_client
+from smartrenamer.core.config import Config
 
 
 class TestCacheManager:
@@ -19,13 +22,14 @@ class TestCacheManager:
         """每个测试前的设置"""
         self.cache_dir = Path("/tmp/smartrenamer_test_cache")
         self.cache_dir.mkdir(exist_ok=True)
-        self.cache = 缓存管理器(self.cache_dir, 过期时间=1)
+        self.cache = 缓存管理器(self.cache_dir, 过期时间=1, 最大内存条目数=10)
     
     def teardown_method(self):
         """每个测试后的清理"""
         self.cache.清空()
         if self.cache_dir.exists():
-            self.cache_dir.rmdir()
+            import shutil
+            shutil.rmtree(self.cache_dir, ignore_errors=True)
     
     def test_设置和获取缓存(self):
         """测试设置和获取缓存"""
@@ -49,6 +53,44 @@ class TestCacheManager:
         
         assert self.cache.获取("key1") is None
         assert self.cache.获取("key2") is None
+    
+    def test_内存缓存LRU(self):
+        """测试内存缓存 LRU 淘汰"""
+        # 添加超过最大条目数的缓存
+        for i in range(15):
+            self.cache.设置(f"key_{i}", {"data": i})
+        
+        # 最早的条目应该被淘汰
+        stats = self.cache.获取统计信息()
+        assert stats["memory_entries"] <= 10
+    
+    def test_磁盘缓存降级(self):
+        """测试磁盘缓存降级"""
+        测试数据 = {"title": "Test Movie"}
+        
+        # 写入缓存
+        self.cache.设置("test_movie", 测试数据)
+        
+        # 清空内存缓存但保留磁盘缓存
+        self.cache._内存缓存.clear()
+        
+        # 从磁盘重新加载
+        结果 = self.cache.获取("test_movie")
+        assert 结果 == 测试数据
+        
+        # 统计应显示磁盘命中
+        stats = self.cache.获取统计信息()
+        assert stats["disk_hits"] > 0
+    
+    def test_缓存键标准化(self):
+        """测试缓存键标准化"""
+        测试数据 = {"title": "Test"}
+        
+        # 不同格式的键应该被标准化为同一个
+        self.cache.设置("The  Matrix", 测试数据)
+        结果 = self.cache.获取("the matrix")
+        
+        assert 结果 == 测试数据
 
 
 class TestEnhancedTMDBClient:
@@ -274,6 +316,197 @@ class Test增强TMDB客户端:
         """测试中文接口初始化"""
         assert self.客户端.启用缓存 is True
         assert self.客户端.最大重试次数 == 3
+
+
+class TestCacheStats:
+    """缓存统计测试"""
+    
+    def setup_method(self):
+        """每个测试前的设置"""
+        self.api_key = "test_api_key"
+        self.cache_dir = Path("/tmp/smartrenamer_test_cache_stats")
+        
+        self.tmdb_patcher = patch('smartrenamer.api.tmdb_client_enhanced.TMDb')
+        self.movie_patcher = patch('smartrenamer.api.tmdb_client_enhanced.Movie')
+        self.tv_patcher = patch('smartrenamer.api.tmdb_client_enhanced.TV')
+        
+        self.mock_tmdb = self.tmdb_patcher.start()
+        self.mock_movie = self.movie_patcher.start()
+        self.mock_tv = self.tv_patcher.start()
+        
+        self.client = EnhancedTMDBClient(
+            self.api_key,
+            缓存目录=self.cache_dir,
+            启用缓存=True,
+            最大缓存条目数=100
+        )
+    
+    def teardown_method(self):
+        """清理"""
+        self.tmdb_patcher.stop()
+        self.movie_patcher.stop()
+        self.tv_patcher.stop()
+        
+        if hasattr(self.client, '缓存') and self.client.缓存:
+            self.client.clear_cache()
+        if self.cache_dir.exists():
+            import shutil
+            shutil.rmtree(self.cache_dir, ignore_errors=True)
+    
+    def test_缓存统计_初始状态(self):
+        """测试缓存统计初始状态"""
+        stats = self.client.get_cache_stats()
+        
+        assert stats["enabled"] is True
+        assert stats["memory_hits"] == 0
+        assert stats["memory_misses"] == 0
+        assert stats["disk_hits"] == 0
+        assert stats["disk_misses"] == 0
+        assert stats["total_requests"] == 0
+        assert stats["hit_rate"] == 0.0
+    
+    def test_缓存命中(self):
+        """测试缓存命中"""
+        mock_result = Mock()
+        mock_result.__dict__ = {"id": 603, "title": "The Matrix"}
+        self.client.movie.search = Mock(return_value=[mock_result])
+        
+        # 第一次查询 - 缓存未命中
+        self.client.search_movie("The Matrix")
+        stats1 = self.client.get_cache_stats()
+        assert stats1["memory_misses"] == 1
+        
+        # 第二次查询 - 缓存命中
+        self.client.search_movie("The Matrix")
+        stats2 = self.client.get_cache_stats()
+        assert stats2["memory_hits"] == 1
+        assert stats2["hit_rate"] > 0
+    
+    def test_缓存过期(self):
+        """测试缓存过期"""
+        # 创建短 TTL 的客户端
+        short_ttl_client = EnhancedTMDBClient(
+            self.api_key,
+            缓存目录=self.cache_dir / "short_ttl",
+            启用缓存=True,
+            缓存过期天数=0.00001  # 约 1 秒
+        )
+        
+        mock_result = Mock()
+        mock_result.__dict__ = {"id": 603, "title": "The Matrix"}
+        short_ttl_client.movie.search = Mock(return_value=[mock_result])
+        
+        # 第一次查询
+        short_ttl_client.search_movie("The Matrix")
+        
+        # 等待缓存过期
+        time.sleep(2)
+        
+        # 第二次查询应该重新请求
+        short_ttl_client.search_movie("The Matrix")
+        assert short_ttl_client.movie.search.call_count == 2
+
+
+class TestConcurrency:
+    """并发测试"""
+    
+    def setup_method(self):
+        """每个测试前的设置"""
+        self.api_key = "test_api_key"
+        self.cache_dir = Path("/tmp/smartrenamer_test_concurrency")
+        
+        self.tmdb_patcher = patch('smartrenamer.api.tmdb_client_enhanced.TMDb')
+        self.movie_patcher = patch('smartrenamer.api.tmdb_client_enhanced.Movie')
+        
+        self.mock_tmdb = self.tmdb_patcher.start()
+        self.mock_movie = self.movie_patcher.start()
+        
+        self.client = EnhancedTMDBClient(
+            self.api_key,
+            缓存目录=self.cache_dir,
+            启用缓存=True,
+            最大并发请求数=3
+        )
+    
+    def teardown_method(self):
+        """清理"""
+        self.tmdb_patcher.stop()
+        self.movie_patcher.stop()
+        
+        if hasattr(self.client, '缓存') and self.client.缓存:
+            self.client.clear_cache()
+        if self.cache_dir.exists():
+            import shutil
+            shutil.rmtree(self.cache_dir, ignore_errors=True)
+    
+    def test_批量搜索电影(self):
+        """测试批量搜索电影"""
+        titles = ["The Matrix", "Inception", "Interstellar"]
+        
+        mock_results = {}
+        for title in titles:
+            mock_result = Mock()
+            mock_result.__dict__ = {"id": hash(title), "title": title}
+            mock_results[title] = [mock_result]
+        
+        def mock_search(title):
+            return mock_results.get(title, [])
+        
+        self.client.movie.search = Mock(side_effect=mock_search)
+        
+        # 批量搜索
+        results = self.client.batch_search_movies(titles)
+        
+        assert len(results) == 3
+        assert "The Matrix" in results
+        assert "Inception" in results
+        assert "Interstellar" in results
+
+
+class TestFactoryPattern:
+    """工厂模式测试"""
+    
+    def setup_method(self):
+        """每个测试前的设置"""
+        clear_tmdb_client()
+        
+        self.tmdb_patcher = patch('smartrenamer.api.tmdb_client_enhanced.TMDb')
+        self.movie_patcher = patch('smartrenamer.api.tmdb_client_enhanced.Movie')
+        
+        self.mock_tmdb = self.tmdb_patcher.start()
+        self.mock_movie = self.movie_patcher.start()
+    
+    def teardown_method(self):
+        """清理"""
+        self.tmdb_patcher.stop()
+        self.movie_patcher.stop()
+        clear_tmdb_client()
+    
+    def test_单例模式(self):
+        """测试单例模式"""
+        config = Config()
+        config.tmdb_api_key = "test_key"
+        
+        client1 = get_tmdb_client(config)
+        client2 = get_tmdb_client(config)
+        
+        # 应该返回同一个实例
+        assert client1 is client2
+    
+    def test_配置改变时重建(self):
+        """测试配置改变时重建客户端"""
+        config1 = Config()
+        config1.tmdb_api_key = "test_key_1"
+        
+        client1 = get_tmdb_client(config1)
+        
+        config2 = Config()
+        config2.tmdb_api_key = "test_key_2"
+        
+        client2 = get_tmdb_client(config2)
+        
+        # 配置改变，应该是不同的实例
+        assert client1 is not client2
 
 
 if __name__ == "__main__":

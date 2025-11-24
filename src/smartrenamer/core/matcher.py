@@ -9,6 +9,8 @@ from difflib import SequenceMatcher
 from .models import MediaFile, MediaType
 from .parser import 文件名解析器
 from ..api.tmdb_client_enhanced import 增强TMDB客户端
+from ..api.factory import get_tmdb_client
+from .config import get_config
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -67,17 +69,23 @@ class 智能匹配器:
     
     def __init__(
         self,
-        tmdb客户端: 增强TMDB客户端,
+        tmdb客户端: Optional[增强TMDB客户端] = None,
         解析器: Optional[文件名解析器] = None
     ):
         """
         初始化匹配器
         
         Args:
-            tmdb客户端: TMDB 客户端实例
+            tmdb客户端: TMDB 客户端实例（可选，如果为 None 则使用工厂创建）
             解析器: 文件名解析器实例（可选）
         """
-        self.tmdb客户端 = tmdb客户端
+        if tmdb客户端 is None:
+            config = get_config()
+            self.tmdb客户端 = get_tmdb_client(config)
+            logger.info("使用工厂模式创建共享 TMDB 客户端")
+        else:
+            self.tmdb客户端 = tmdb客户端
+        
         self.解析器 = 解析器 or 文件名解析器()
     
     def 匹配文件(

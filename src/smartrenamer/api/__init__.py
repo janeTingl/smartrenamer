@@ -9,10 +9,20 @@ from smartrenamer.api.tmdb_client_enhanced import (
     增强TMDB客户端,
     缓存管理器
 )
+from smartrenamer.api.factory import (
+    TMDBClientFactory,
+    get_tmdb_client,
+    clear_tmdb_client,
+    get_cache_stats
+)
 
 __all__ = [
     "TMDBClient",
     "EnhancedTMDBClient",
     "增强TMDB客户端",
     "缓存管理器",
+    "TMDBClientFactory",
+    "get_tmdb_client",
+    "clear_tmdb_client",
+    "get_cache_stats",
 ]
