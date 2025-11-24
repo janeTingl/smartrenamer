@@ -45,6 +45,11 @@ class Config:
     cache_enabled: bool = True
     cache_ttl: int = 86400  # 24 小时
     
+    # TMDB 缓存配置
+    tmdb_cache_enabled: bool = True
+    tmdb_cache_ttl_hours: int = 168  # 7 天
+    tmdb_cache_max_entries: int = 1000  # 内存缓存最大条目数
+    
     # 日志设置
     log_level: str = "INFO"
     log_to_file: bool = True

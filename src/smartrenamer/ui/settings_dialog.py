@@ -9,11 +9,12 @@ from pathlib import Path
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QTabWidget, QWidget, QGroupBox, QComboBox,
-    QCheckBox, QMessageBox, QFileDialog
+    QCheckBox, QMessageBox, QFileDialog, QSpinBox
 )
 from PySide6.QtCore import Qt, Signal
 from smartrenamer.core import get_config, set_config, Config
 from smartrenamer.ui.widgets import PathSelector
+from smartrenamer.api import get_cache_stats
 
 
 logger = logging.getLogger(__name__)
@@ -114,6 +115,55 @@ class SettingsDialog(QDialog):
         tmdb_layout.addWidget(help_label)
         
         layout.addWidget(tmdb_group)
+        
+        # TMDB 缓存配置
+        cache_group = QGroupBox("TMDB 缓存配置")
+        cache_layout = QVBoxLayout(cache_group)
+        
+        # 启用缓存
+        self.tmdb_cache_enabled = QCheckBox("启用 TMDB 缓存")
+        self.tmdb_cache_enabled.setChecked(True)
+        cache_layout.addWidget(self.tmdb_cache_enabled)
+        
+        # TTL
+        ttl_layout = QHBoxLayout()
+        ttl_layout.addWidget(QLabel("缓存有效期（小时）:"))
+        self.tmdb_cache_ttl = QSpinBox()
+        self.tmdb_cache_ttl.setRange(1, 720)  # 1小时 到 30天
+        self.tmdb_cache_ttl.setValue(168)  # 默认 7 天
+        self.tmdb_cache_ttl.setSuffix(" 小时")
+        ttl_layout.addWidget(self.tmdb_cache_ttl)
+        ttl_layout.addStretch()
+        cache_layout.addLayout(ttl_layout)
+        
+        # 最大条目数
+        entries_layout = QHBoxLayout()
+        entries_layout.addWidget(QLabel("内存缓存容量:"))
+        self.tmdb_cache_max_entries = QSpinBox()
+        self.tmdb_cache_max_entries.setRange(100, 10000)
+        self.tmdb_cache_max_entries.setValue(1000)
+        self.tmdb_cache_max_entries.setSuffix(" 条")
+        entries_layout.addWidget(self.tmdb_cache_max_entries)
+        entries_layout.addStretch()
+        cache_layout.addLayout(entries_layout)
+        
+        # 缓存统计
+        stats_layout = QHBoxLayout()
+        self.cache_stats_label = QLabel("缓存统计: 未加载")
+        self.cache_stats_label.setStyleSheet("QLabel { color: gray; font-size: 10px; }")
+        stats_layout.addWidget(self.cache_stats_label)
+        
+        refresh_stats_btn = QPushButton("刷新统计")
+        refresh_stats_btn.clicked.connect(self._on_refresh_cache_stats)
+        stats_layout.addWidget(refresh_stats_btn)
+        
+        clear_tmdb_cache_btn = QPushButton("清空 TMDB 缓存")
+        clear_tmdb_cache_btn.clicked.connect(self._on_clear_tmdb_cache)
+        stats_layout.addWidget(clear_tmdb_cache_btn)
+        
+        cache_layout.addLayout(stats_layout)
+        
+        layout.addWidget(cache_group)
         layout.addStretch()
         
         return widget
@@ -197,6 +247,14 @@ class SettingsDialog(QDialog):
         lang_index = self.language_combo.findText(self.config.tmdb_language)
         if lang_index >= 0:
             self.language_combo.setCurrentIndex(lang_index)
+        
+        # TMDB 缓存配置
+        self.tmdb_cache_enabled.setChecked(self.config.get("tmdb_cache_enabled", True))
+        self.tmdb_cache_ttl.setValue(self.config.get("tmdb_cache_ttl_hours", 168))
+        self.tmdb_cache_max_entries.setValue(self.config.get("tmdb_cache_max_entries", 1000))
+        
+        # 刷新缓存统计
+        self._on_refresh_cache_stats()
             
         # 路径设置
         if self.config.scan_sources and len(self.config.scan_sources) > 0:
@@ -226,6 +284,11 @@ class SettingsDialog(QDialog):
             return
             
         self.config.tmdb_language = self.language_combo.currentText()
+        
+        # TMDB 缓存配置
+        self.config.set("tmdb_cache_enabled", self.tmdb_cache_enabled.isChecked())
+        self.config.set("tmdb_cache_ttl_hours", self.tmdb_cache_ttl.value())
+        self.config.set("tmdb_cache_max_entries", self.tmdb_cache_max_entries.value())
         
         # 路径设置
         scan_path = self.scan_path_selector.get_path()
@@ -270,3 +333,62 @@ class SettingsDialog(QDialog):
                 
             logger.info("缓存已清空")
             QMessageBox.information(self, "成功", "缓存已清空")
+    
+    def _on_clear_tmdb_cache(self):
+        """清空 TMDB 缓存"""
+        reply = QMessageBox.question(
+            self,
+            "确认",
+            "确定要清空 TMDB 缓存吗？这将清空所有电影和电视剧的查询缓存。",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            try:
+                from smartrenamer.api import clear_tmdb_client
+                
+                # 清除客户端实例（这会触发缓存清空）
+                clear_tmdb_client()
+                
+                # 删除 TMDB 缓存目录
+                tmdb_cache_dir = self.config.get_cache_dir() / "tmdb"
+                if tmdb_cache_dir.exists():
+                    import shutil
+                    shutil.rmtree(tmdb_cache_dir)
+                    tmdb_cache_dir.mkdir(parents=True)
+                
+                logger.info("TMDB 缓存已清空")
+                QMessageBox.information(self, "成功", "TMDB 缓存已清空")
+                
+                # 刷新统计
+                self._on_refresh_cache_stats()
+                
+            except Exception as e:
+                logger.error(f"清空 TMDB 缓存失败: {e}")
+                QMessageBox.warning(self, "错误", f"清空缓存失败: {e}")
+    
+    def _on_refresh_cache_stats(self):
+        """刷新缓存统计"""
+        try:
+            stats = get_cache_stats()
+            
+            if not stats.get("enabled", False):
+                self.cache_stats_label.setText("缓存统计: 缓存未启用")
+            else:
+                hit_rate = stats.get("hit_rate", 0.0) * 100
+                memory_hits = stats.get("memory_hits", 0)
+                disk_hits = stats.get("disk_hits", 0)
+                total_requests = stats.get("total_requests", 0)
+                memory_entries = stats.get("memory_entries", 0)
+                
+                stats_text = (
+                    f"缓存统计: 总请求 {total_requests} 次, "
+                    f"命中率 {hit_rate:.1f}% "
+                    f"(内存 {memory_hits}, 磁盘 {disk_hits}), "
+                    f"内存条目 {memory_entries}"
+                )
+                self.cache_stats_label.setText(stats_text)
+                
+        except Exception as e:
+            logger.warning(f"获取缓存统计失败: {e}")
+            self.cache_stats_label.setText("缓存统计: 获取失败")
