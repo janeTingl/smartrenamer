@@ -4,6 +4,7 @@
 负责应用配置的加载、保存和管理
 """
 import json
+import os
 from pathlib import Path
 from typing import Optional, Dict, Any
 from dataclasses import dataclass, asdict
@@ -24,6 +25,8 @@ class Config:
     auto_rename: bool = False
     create_backup: bool = True
     preview_before_rename: bool = True
+    rename_worker_count: int = 4  # 并行重命名工作线程数
+    rename_io_batch: bool = True  # 启用分批重命名
     
     # 文件过滤
     supported_extensions: list = None
@@ -69,6 +72,10 @@ class Config:
                 "Subs", "Subtitles", "subs", "subtitles",
                 "Extras", "extras"
             ]
+        # 设置默认 worker 数量为 CPU 核心数，最小为 1，最大为 8
+        if self.rename_worker_count <= 0:
+            cpu_count = os.cpu_count() or 4
+            self.rename_worker_count = min(max(cpu_count, 1), 8)
     
     @classmethod
     def load(cls, config_path: Optional[Path] = None) -> "Config":

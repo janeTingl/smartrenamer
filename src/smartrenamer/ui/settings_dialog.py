@@ -9,7 +9,7 @@ from pathlib import Path
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QTabWidget, QWidget, QGroupBox, QComboBox,
-    QCheckBox, QMessageBox, QFileDialog, QSpinBox
+    QCheckBox, QMessageBox, QFileDialog, QSpinBox, QSlider
 )
 from PySide6.QtCore import Qt, Signal
 from smartrenamer.core import get_config, set_config, Config
@@ -222,6 +222,43 @@ class SettingsDialog(QDialog):
         
         layout.addWidget(options_group)
         
+        # 并行处理设置
+        parallel_group = QGroupBox("并行处理设置")
+        parallel_layout = QVBoxLayout(parallel_group)
+        
+        # 启用分批重命名
+        self.batch_rename_checkbox = QCheckBox("启用分批重命名（提升大批量性能）")
+        parallel_layout.addWidget(self.batch_rename_checkbox)
+        
+        # 工作线程数滑杆
+        worker_layout = QVBoxLayout()
+        worker_label_layout = QHBoxLayout()
+        worker_label_layout.addWidget(QLabel("并行工作线程数:"))
+        self.worker_count_label = QLabel("4")
+        self.worker_count_label.setStyleSheet("QLabel { font-weight: bold; }")
+        worker_label_layout.addWidget(self.worker_count_label)
+        worker_label_layout.addStretch()
+        worker_layout.addLayout(worker_label_layout)
+        
+        self.worker_count_slider = QSlider(Qt.Horizontal)
+        self.worker_count_slider.setMinimum(1)
+        self.worker_count_slider.setMaximum(16)
+        self.worker_count_slider.setValue(4)
+        self.worker_count_slider.setTickPosition(QSlider.TicksBelow)
+        self.worker_count_slider.setTickInterval(1)
+        self.worker_count_slider.valueChanged.connect(
+            lambda v: self.worker_count_label.setText(str(v))
+        )
+        worker_layout.addWidget(self.worker_count_slider)
+        
+        worker_hint = QLabel("提示: 线程数建议设置为 CPU 核心数。过多的线程可能降低性能。")
+        worker_hint.setStyleSheet("QLabel { color: gray; font-size: 10px; }")
+        worker_hint.setWordWrap(True)
+        worker_layout.addWidget(worker_hint)
+        
+        parallel_layout.addLayout(worker_layout)
+        layout.addWidget(parallel_group)
+        
         # 匹配设置
         match_group = QGroupBox("匹配设置")
         match_layout = QVBoxLayout(match_group)
@@ -268,6 +305,12 @@ class SettingsDialog(QDialog):
         self.preview_checkbox.setChecked(self.config.get("preview_mode", True))
         self.auto_confirm_checkbox.setChecked(self.config.get("auto_confirm", True))
         
+        # 并行处理设置
+        self.batch_rename_checkbox.setChecked(self.config.get("rename_io_batch", True))
+        worker_count = self.config.get("rename_worker_count", 4)
+        self.worker_count_slider.setValue(worker_count)
+        self.worker_count_label.setText(str(worker_count))
+        
         threshold = str(self.config.get("similarity_threshold", 0.8))
         threshold_index = self.threshold_combo.findText(threshold)
         if threshold_index >= 0:
@@ -300,6 +343,10 @@ class SettingsDialog(QDialog):
         self.config.set("preview_mode", self.preview_checkbox.isChecked())
         self.config.set("auto_confirm", self.auto_confirm_checkbox.isChecked())
         self.config.set("similarity_threshold", float(self.threshold_combo.currentText()))
+        
+        # 并行处理设置
+        self.config.set("rename_io_batch", self.batch_rename_checkbox.isChecked())
+        self.config.set("rename_worker_count", self.worker_count_slider.value())
         
         # 保存配置
         self.config.save()

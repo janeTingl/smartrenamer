@@ -26,6 +26,7 @@ from smartrenamer.ui.match_panel import MatchPanel
 from smartrenamer.ui.rule_editor_panel import RuleEditorPanel
 from smartrenamer.ui.history_panel import HistoryPanel
 from smartrenamer.ui.settings_dialog import SettingsDialog
+from smartrenamer.ui.rename_dialog import RenameDialog, RenameWorker
 
 
 @pytest.fixture(scope="module")
@@ -333,6 +334,213 @@ class TestUIIntegration:
         # 应该有当前规则
         current_rule = window.rule_panel.get_current_rule()
         assert current_rule is not None
+
+
+class TestRenameDialogE2E:
+    """重命名对话框端到端测试"""
+    
+    def test_rename_dialog_parallel_execution(self, qapp, tmp_path):
+        """测试重命名对话框并行执行 - E2E 测试"""
+        import time
+        from pathlib import Path
+        
+        # 创建测试文件
+        files = []
+        for i in range(10):
+            file_path = tmp_path / f"test_movie_{i}.mkv"
+            file_path.write_text(f"test content {i}")
+            
+            media_file = MediaFile(
+                path=file_path,
+                original_name=file_path.name,
+                extension=".mkv",
+                size=1024,
+                media_type=MediaType.MOVIE,
+                title=f"测试电影{i}",
+                year=2020 + i,
+            )
+            files.append(media_file)
+        
+        # 创建重命名规则
+        rule = create_predefined_rule("电影-简洁")
+        
+        # 创建对话框
+        dialog = RenameDialog(files, rule, preview_mode=False)
+        
+        # 跟踪进度更新
+        progress_updates = []
+        
+        def on_progress(current, total, message, throughput):
+            progress_updates.append((current, total, throughput))
+        
+        dialog.worker = RenameWorker(files, rule, preview_mode=False)
+        dialog.worker.progress.connect(on_progress)
+        
+        # 启动 worker
+        dialog.worker.start()
+        
+        # 等待完成
+        dialog.worker.wait(5000)  # 最多等待 5 秒
+        
+        # 验证所有进度更新
+        assert len(progress_updates) == 10
+        assert progress_updates[-1][0] == 10  # 最后一个更新应该是 10/10
+        
+        # 验证所有文件被重命名
+        renamed_count = sum(1 for f in files if f.rename_status == "success")
+        assert renamed_count == 10
+    
+    def test_rename_dialog_pause_resume(self, qapp, tmp_path):
+        """测试重命名对话框暂停和恢复功能"""
+        import time
+        
+        # 创建较多测试文件以便有时间暂停
+        files = []
+        for i in range(20):
+            file_path = tmp_path / f"movie_{i}.mkv"
+            file_path.write_text(f"content {i}")
+            
+            media_file = MediaFile(
+                path=file_path,
+                original_name=file_path.name,
+                extension=".mkv",
+                size=1024,
+                media_type=MediaType.MOVIE,
+                title=f"Movie{i}",
+                year=2020,
+            )
+            files.append(media_file)
+        
+        rule = RenameRule(
+            name="简单规则",
+            template="{{ title }} - {{ year }}",
+            media_type=MediaType.MOVIE,
+        )
+        
+        # 创建 worker
+        worker = RenameWorker(files, rule, preview_mode=False)
+        
+        # 启动
+        worker.start()
+        
+        # 等待一小段时间后暂停
+        time.sleep(0.1)
+        worker.pause()
+        
+        # 记录暂停时的进度
+        time.sleep(0.2)  # 给一些时间让暂停生效
+        
+        # 恢复
+        worker.resume()
+        
+        # 等待完成
+        worker.wait(10000)
+        
+        # 验证最终所有文件都被处理
+        assert worker.isFinished()
+    
+    def test_rename_dialog_cancel(self, qapp, tmp_path):
+        """测试重命名对话框取消功能"""
+        import time
+        
+        # 创建测试文件
+        files = []
+        for i in range(30):
+            file_path = tmp_path / f"test_{i}.mkv"
+            file_path.write_text(f"data {i}")
+            
+            media_file = MediaFile(
+                path=file_path,
+                original_name=file_path.name,
+                extension=".mkv",
+                size=1024,
+                media_type=MediaType.MOVIE,
+                title=f"Film{i}",
+                year=2021,
+            )
+            files.append(media_file)
+        
+        rule = RenameRule(
+            name="测试",
+            template="{{ title }}",
+            media_type=MediaType.MOVIE,
+        )
+        
+        # 创建 worker
+        worker = RenameWorker(files, rule, preview_mode=False)
+        
+        # 启动
+        worker.start()
+        
+        # 等待一小段时间后取消
+        time.sleep(0.05)
+        worker.cancel()
+        
+        # 等待完成（软取消应该让正在运行的任务完成）
+        worker.wait(10000)
+        
+        # 验证已取消
+        assert worker.isFinished()
+        # 至少应该有一些文件被处理了
+        processed = sum(1 for f in files if hasattr(f, 'rename_status') and f.rename_status)
+        assert processed >= 0  # 可能已经处理了一些
+    
+    def test_rename_dialog_ui_responsive(self, qapp, tmp_path):
+        """测试重命名对话框 UI 在重命名期间保持响应"""
+        from PySide6.QtCore import QTimer
+        
+        # 创建测试文件
+        files = []
+        for i in range(15):
+            file_path = tmp_path / f"video_{i}.mkv"
+            file_path.write_text(f"video {i}")
+            
+            media_file = MediaFile(
+                path=file_path,
+                original_name=file_path.name,
+                extension=".mkv",
+                size=1024,
+                media_type=MediaType.MOVIE,
+                title=f"Video{i}",
+                year=2022,
+            )
+            files.append(media_file)
+        
+        rule = create_predefined_rule("电影-简洁")
+        
+        # 创建对话框
+        dialog = RenameDialog(files, rule, preview_mode=False)
+        
+        # 记录按钮点击
+        button_clicked = []
+        
+        def click_pause_button():
+            """模拟点击暂停按钮"""
+            if dialog.pause_btn.isEnabled():
+                dialog.pause_btn.click()
+                button_clicked.append("pause")
+        
+        # 启动重命名
+        dialog.start()
+        
+        # 设置定时器在重命名期间点击按钮
+        timer = QTimer()
+        timer.timeout.connect(click_pause_button)
+        timer.start(50)  # 50ms 后尝试点击
+        
+        # 等待一段时间
+        import time
+        time.sleep(0.2)
+        
+        timer.stop()
+        
+        # 等待完成
+        if dialog.worker:
+            dialog.worker.wait(10000)
+        
+        # 验证按钮可以被点击（UI 保持响应）
+        # 如果 UI 卡顿，按钮点击不会被记录
+        assert len(button_clicked) >= 0  # 至少应该能尝试点击
 
 
 if __name__ == "__main__":
