@@ -53,6 +53,10 @@ class SettingsDialog(QDialog):
         rename_tab = self._create_rename_tab()
         tabs.addTab(rename_tab, "重命名选项")
         
+        # 外观设置
+        appearance_tab = self._create_appearance_tab()
+        tabs.addTab(appearance_tab, "外观")
+        
         layout.addWidget(tabs)
         
         # 按钮
@@ -275,6 +279,57 @@ class SettingsDialog(QDialog):
         layout.addStretch()
         
         return widget
+    
+    def _create_appearance_tab(self) -> QWidget:
+        """创建外观设置选项卡"""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        # 主题设置
+        theme_group = QGroupBox("主题设置")
+        theme_layout = QVBoxLayout(theme_group)
+        
+        theme_select_layout = QHBoxLayout()
+        theme_select_layout.addWidget(QLabel("主题:"))
+        self.theme_combo = QComboBox()
+        self.theme_combo.addItem("亮色主题", "light")
+        self.theme_combo.addItem("暗色主题", "dark")
+        self.theme_combo.currentIndexChanged.connect(self._on_theme_preview)
+        theme_select_layout.addWidget(self.theme_combo)
+        theme_select_layout.addStretch()
+        theme_layout.addLayout(theme_select_layout)
+        
+        # 主题预览提示
+        theme_hint = QLabel("提示: 主题切换将在保存后立即生效")
+        theme_hint.setStyleSheet("QLabel { color: gray; font-size: 10px; }")
+        theme_hint.setWordWrap(True)
+        theme_layout.addWidget(theme_hint)
+        
+        layout.addWidget(theme_group)
+        
+        # 语言设置
+        language_group = QGroupBox("语言设置")
+        language_layout = QVBoxLayout(language_group)
+        
+        lang_select_layout = QHBoxLayout()
+        lang_select_layout.addWidget(QLabel("界面语言:"))
+        self.ui_language_combo = QComboBox()
+        self.ui_language_combo.addItem("简体中文", "zh_CN")
+        self.ui_language_combo.addItem("English", "en_US")
+        lang_select_layout.addWidget(self.ui_language_combo)
+        lang_select_layout.addStretch()
+        language_layout.addLayout(lang_select_layout)
+        
+        # 语言切换提示
+        lang_hint = QLabel("提示: 语言切换将在重启应用后生效")
+        lang_hint.setStyleSheet("QLabel { color: gray; font-size: 10px; }")
+        lang_hint.setWordWrap(True)
+        language_layout.addWidget(lang_hint)
+        
+        layout.addWidget(language_group)
+        layout.addStretch()
+        
+        return widget
         
     def _load_settings(self):
         """加载设置"""
@@ -315,6 +370,19 @@ class SettingsDialog(QDialog):
         threshold_index = self.threshold_combo.findText(threshold)
         if threshold_index >= 0:
             self.threshold_combo.setCurrentIndex(threshold_index)
+        
+        # 外观设置
+        theme = self.config.get("theme", "light")
+        for i in range(self.theme_combo.count()):
+            if self.theme_combo.itemData(i) == theme:
+                self.theme_combo.setCurrentIndex(i)
+                break
+        
+        language = self.config.get("language", "zh_CN")
+        for i in range(self.ui_language_combo.count()):
+            if self.ui_language_combo.itemData(i) == language:
+                self.ui_language_combo.setCurrentIndex(i)
+                break
             
     def _on_save(self):
         """保存设置"""
@@ -348,6 +416,15 @@ class SettingsDialog(QDialog):
         self.config.set("rename_io_batch", self.batch_rename_checkbox.isChecked())
         self.config.set("rename_worker_count", self.worker_count_slider.value())
         
+        # 外观设置
+        old_theme = self.config.get("theme", "light")
+        new_theme = self.theme_combo.currentData()
+        self.config.set("theme", new_theme)
+        
+        old_language = self.config.get("language", "zh_CN")
+        new_language = self.ui_language_combo.currentData()
+        self.config.set("language", new_language)
+        
         # 保存配置
         self.config.save()
         
@@ -357,7 +434,25 @@ class SettingsDialog(QDialog):
         logger.info("设置已保存")
         self.settings_saved.emit()
         
-        QMessageBox.information(self, "成功", "设置已保存")
+        # 如果主题改变，立即应用
+        theme_changed = old_theme != new_theme
+        language_changed = old_language != new_language
+        
+        if theme_changed:
+            from smartrenamer.ui.theme_manager import apply_theme
+            from PySide6.QtWidgets import QApplication
+            apply_theme(QApplication.instance(), new_theme)
+        
+        # 提示消息
+        if language_changed:
+            QMessageBox.information(
+                self, 
+                "设置已保存", 
+                "设置已保存。语言切换将在重启应用后生效。"
+            )
+        else:
+            QMessageBox.information(self, "成功", "设置已保存")
+        
         self.accept()
         
     def _on_clear_cache(self):
@@ -413,6 +508,11 @@ class SettingsDialog(QDialog):
             except Exception as e:
                 logger.error(f"清空 TMDB 缓存失败: {e}")
                 QMessageBox.warning(self, "错误", f"清空缓存失败: {e}")
+    
+    def _on_theme_preview(self):
+        """主题预览"""
+        # 暂不实现实时预览，保存后才生效
+        pass
     
     def _on_refresh_cache_stats(self):
         """刷新缓存统计"""

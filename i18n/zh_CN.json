@@ -1,0 +1,91 @@
+{
+  "app_name": "SmartRenamer",
+  "app_description": "智能媒体文件重命名工具",
+  
+  "menu": {
+    "file": "文件(&F)",
+    "file_open": "打开目录(&O)...",
+    "file_exit": "退出(&X)",
+    "edit": "编辑(&E)",
+    "edit_settings": "设置(&S)...",
+    "tools": "工具(&T)",
+    "tools_match": "匹配选中文件(&M)",
+    "tools_rename": "批量重命名(&R)...",
+    "tools_undo": "撤销上次重命名(&U)",
+    "view": "视图(&V)",
+    "view_theme": "主题(&T)",
+    "view_theme_light": "亮色主题(&L)",
+    "view_theme_dark": "暗色主题(&D)",
+    "view_log": "日志面板(&L)",
+    "help": "帮助(&H)",
+    "help_about": "关于(&A)...",
+    "help_documentation": "使用文档(&D)"
+  },
+  
+  "tabs": {
+    "library": "📁 媒体库",
+    "match": "🔍 匹配识别",
+    "rules": "⚙️ 重命名规则",
+    "history": "📜 历史记录"
+  },
+  
+  "toolbar": {
+    "open_directory": "打开目录",
+    "match": "匹配",
+    "rename": "重命名",
+    "undo": "撤销",
+    "settings": "设置"
+  },
+  
+  "status": {
+    "ready": "就绪",
+    "scanning": "扫描中...",
+    "matching": "匹配中...",
+    "renaming": "重命名中..."
+  },
+  
+  "settings": {
+    "title": "设置",
+    "tab_api": "API 配置",
+    "tab_paths": "路径配置",
+    "tab_rename": "重命名选项",
+    "tab_appearance": "外观",
+    "tab_language": "语言",
+    "save": "保存",
+    "cancel": "取消",
+    "api_key": "API Key:",
+    "api_key_placeholder": "请输入 TMDB API Key",
+    "show": "显示",
+    "language": "语言:",
+    "theme": "主题:",
+    "ui_language": "界面语言:",
+    "theme_light": "亮色主题",
+    "theme_dark": "暗色主题",
+    "restart_required": "需要重启",
+    "restart_message": "语言切换将在重启后生效。",
+    "settings_saved": "设置已保存",
+    "settings_saved_message": "设置已成功保存。"
+  },
+  
+  "dialogs": {
+    "confirm": "确认",
+    "warning": "警告",
+    "error": "错误",
+    "info": "提示",
+    "success": "成功",
+    "yes": "是",
+    "no": "否",
+    "ok": "确定",
+    "cancel": "取消"
+  },
+  
+  "messages": {
+    "config_warning": "配置验证失败:\n{error}\n\n请在设置中配置 TMDB API Key 后才能使用匹配功能。",
+    "no_files_selected": "请先在媒体库中选择要匹配的文件",
+    "no_rule_selected": "请先在重命名规则选项卡中选择一个规则",
+    "confirm_rename": "确定要使用规则 '{rule}' 重命名 {count} 个文件吗？",
+    "rename_completed": "重命名完成: 成功 {success}, 失败 {failed}",
+    "about_title": "关于 SmartRenamer",
+    "about_content": "<h2>SmartRenamer v{version}</h2><p>智能媒体文件重命名工具</p><p>基于 TMDB API 的电影和电视剧文件智能识别与重命名</p><p><b>功能特性:</b></p><ul><li>智能文件名解析</li><li>TMDB 自动匹配</li><li>灵活的重命名规则（Jinja2 模板）</li><li>批量处理</li><li>操作历史与撤销</li></ul><p><b>开发者:</b> SmartRenamer Team</p><p><b>许可证:</b> MIT License</p>"
+  }
+}

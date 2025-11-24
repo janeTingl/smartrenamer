@@ -61,6 +61,10 @@ class LogPanel(QWidget):
         """添加日志消息"""
         timestamp = datetime.now().strftime("%H:%M:%S")
         self.log_widget.append_log(level, f"{timestamp} - {message}")
+    
+    def clear(self):
+        """清空日志（公共方法）"""
+        self.log_widget.clear()
 
 
 class QtLogHandler(logging.Handler):
