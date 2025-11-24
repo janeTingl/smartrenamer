@@ -2,6 +2,43 @@
 
 本文档记录 SmartRenamer 项目的所有重要更改。
 
+## [未发布]
+
+### 维护更新
+
+#### GitHub Actions 升级 🔧
+
+- **Artifact Actions 升级**
+  - 升级 `actions/upload-artifact` 从 v3 到 v4（3 处）
+  - 升级 `actions/download-artifact` 从 v3 到 v4（1 处）
+  - 改进的 artifact 存储和传输性能
+  - 消除 v3 弃用警告
+
+- **Python Setup 升级**
+  - 升级 `actions/setup-python` 从 v4 到 v5（3 处）
+  - 改进的 Python 缓存机制
+  - 更快的环境设置速度
+  - 支持更多 Python 版本
+
+- **安全扫描升级**
+  - 升级 `github/codeql-action/upload-sarif` 从 v2 到 v3（1 处）
+  - 改进的 SARIF 文件处理
+  - 更好的安全分析集成
+
+- **文档**
+  - GITHUB_ACTIONS_UPGRADE.md（完整升级报告）
+  - UPGRADE_SUMMARY.md（升级总结）
+
+**影响范围：**
+- `.github/workflows/build-release.yml` - 跨平台构建工作流
+- `.github/workflows/docker-build.yml` - Docker 构建工作流
+
+**兼容性：**
+- ✅ 所有更改向后兼容
+- ✅ 工作流语法检查通过
+- ✅ Artifact 命名策略已适配 v4
+- ✅ 无破坏性变更
+
 ## [0.6.0] - 2024-11-24
 
 ### 新增功能
