@@ -39,6 +39,7 @@ class Config:
     
     # UI 设置
     theme: str = "light"
+    language: str = "zh_CN"  # 界面语言
     window_width: int = 1200
     window_height: int = 800
     

@@ -58,10 +58,22 @@ def main():
     try:
         from PySide6.QtWidgets import QApplication
         from smartrenamer.ui import MainWindow
+        from smartrenamer.ui.theme_manager import apply_theme
+        from smartrenamer.ui.i18n_manager import load_translation
         
         app = QApplication(sys.argv)
         app.setApplicationName("SmartRenamer")
         app.setApplicationVersion(__version__)
+        
+        # 应用主题
+        theme = config.get("theme", "light")
+        apply_theme(app, theme)
+        logger.info(f"应用主题: {theme}")
+        
+        # 加载语言
+        language = config.get("language", "zh_CN")
+        load_translation(app, language)
+        logger.info(f"加载语言: {language}")
         
         # 创建并显示主窗口
         window = MainWindow()

@@ -46,6 +46,9 @@ class MainWindow(QMainWindow):
         self._create_statusbar()
         self._connect_signals()
         
+        # 应用主题
+        self._apply_theme()
+        
         # 检查配置
         self._check_config()
         
@@ -141,6 +144,53 @@ class MainWindow(QMainWindow):
         undo_action.setShortcut(QKeySequence.Undo)
         undo_action.triggered.connect(self._on_undo_last)
         tools_menu.addAction(undo_action)
+        
+        # 视图菜单
+        view_menu = menubar.addMenu("视图(&V)")
+        
+        # 主题子菜单
+        theme_menu = view_menu.addMenu("主题(&T)")
+        
+        light_theme_action = QAction("亮色主题(&L)", self)
+        light_theme_action.setShortcut(QKeySequence("Ctrl+Shift+L"))
+        light_theme_action.triggered.connect(lambda: self._on_switch_theme("light"))
+        theme_menu.addAction(light_theme_action)
+        
+        dark_theme_action = QAction("暗色主题(&D)", self)
+        dark_theme_action.setShortcut(QKeySequence("Ctrl+Shift+D"))
+        dark_theme_action.triggered.connect(lambda: self._on_switch_theme("dark"))
+        theme_menu.addAction(dark_theme_action)
+        
+        view_menu.addSeparator()
+        
+        # 切换面板快捷键
+        library_action = QAction("媒体库(&1)", self)
+        library_action.setShortcut(QKeySequence("Ctrl+1"))
+        library_action.triggered.connect(lambda: self.tab_widget.setCurrentIndex(0))
+        view_menu.addAction(library_action)
+        
+        match_action_view = QAction("匹配识别(&2)", self)
+        match_action_view.setShortcut(QKeySequence("Ctrl+2"))
+        match_action_view.triggered.connect(lambda: self.tab_widget.setCurrentIndex(1))
+        view_menu.addAction(match_action_view)
+        
+        rules_action = QAction("重命名规则(&3)", self)
+        rules_action.setShortcut(QKeySequence("Ctrl+3"))
+        rules_action.triggered.connect(lambda: self.tab_widget.setCurrentIndex(2))
+        view_menu.addAction(rules_action)
+        
+        history_action = QAction("历史记录(&4)", self)
+        history_action.setShortcut(QKeySequence("Ctrl+4"))
+        history_action.triggered.connect(lambda: self.tab_widget.setCurrentIndex(3))
+        view_menu.addAction(history_action)
+        
+        view_menu.addSeparator()
+        
+        # 清空日志
+        clear_log_action = QAction("清空日志(&C)", self)
+        clear_log_action.setShortcut(QKeySequence("Ctrl+L"))
+        clear_log_action.triggered.connect(self._on_clear_log)
+        view_menu.addAction(clear_log_action)
         
         # 帮助菜单
         help_menu = menubar.addMenu("帮助(&H)")
@@ -389,7 +439,41 @@ class MainWindow(QMainWindow):
         """设置已保存"""
         logger.info("设置已保存，重新加载配置")
         self.config = get_config()
+        # 应用主题（如果改变了）
+        self._apply_theme()
         self.statusbar.showMessage("设置已保存")
+    
+    def _apply_theme(self):
+        """应用主题"""
+        from smartrenamer.ui.theme_manager import apply_theme
+        from PySide6.QtWidgets import QApplication
+        
+        theme = self.config.get("theme", "light")
+        apply_theme(QApplication.instance(), theme)
+        logger.info(f"应用主题: {theme}")
+    
+    @Slot(str)
+    def _on_switch_theme(self, theme_name: str):
+        """切换主题"""
+        from smartrenamer.ui.theme_manager import apply_theme
+        from PySide6.QtWidgets import QApplication
+        
+        # 保存主题设置
+        self.config.set("theme", theme_name)
+        self.config.save()
+        
+        # 应用主题
+        apply_theme(QApplication.instance(), theme_name)
+        
+        logger.info(f"切换主题: {theme_name}")
+        self.statusbar.showMessage(f"已切换到{theme_name}主题")
+    
+    @Slot()
+    def _on_clear_log(self):
+        """清空日志"""
+        self.log_panel.clear()
+        logger.info("日志已清空")
+        self.statusbar.showMessage("日志已清空")
         
     @Slot()
     def _on_about(self):

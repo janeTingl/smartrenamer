@@ -1,0 +1,91 @@
+{
+  "app_name": "SmartRenamer",
+  "app_description": "Smart Media File Renamer",
+  
+  "menu": {
+    "file": "&File",
+    "file_open": "&Open Directory...",
+    "file_exit": "E&xit",
+    "edit": "&Edit",
+    "edit_settings": "&Settings...",
+    "tools": "&Tools",
+    "tools_match": "&Match Selected Files",
+    "tools_rename": "Batch &Rename...",
+    "tools_undo": "&Undo Last Rename",
+    "view": "&View",
+    "view_theme": "&Theme",
+    "view_theme_light": "&Light Theme",
+    "view_theme_dark": "&Dark Theme",
+    "view_log": "&Log Panel",
+    "help": "&Help",
+    "help_about": "&About...",
+    "help_documentation": "&Documentation"
+  },
+  
+  "tabs": {
+    "library": "📁 Media Library",
+    "match": "🔍 Match & Identify",
+    "rules": "⚙️ Rename Rules",
+    "history": "📜 History"
+  },
+  
+  "toolbar": {
+    "open_directory": "Open Directory",
+    "match": "Match",
+    "rename": "Rename",
+    "undo": "Undo",
+    "settings": "Settings"
+  },
+  
+  "status": {
+    "ready": "Ready",
+    "scanning": "Scanning...",
+    "matching": "Matching...",
+    "renaming": "Renaming..."
+  },
+  
+  "settings": {
+    "title": "Settings",
+    "tab_api": "API Configuration",
+    "tab_paths": "Path Configuration",
+    "tab_rename": "Rename Options",
+    "tab_appearance": "Appearance",
+    "tab_language": "Language",
+    "save": "Save",
+    "cancel": "Cancel",
+    "api_key": "API Key:",
+    "api_key_placeholder": "Enter TMDB API Key",
+    "show": "Show",
+    "language": "Language:",
+    "theme": "Theme:",
+    "ui_language": "Interface Language:",
+    "theme_light": "Light Theme",
+    "theme_dark": "Dark Theme",
+    "restart_required": "Restart Required",
+    "restart_message": "Language change will take effect after restart.",
+    "settings_saved": "Settings Saved",
+    "settings_saved_message": "Settings have been saved successfully."
+  },
+  
+  "dialogs": {
+    "confirm": "Confirm",
+    "warning": "Warning",
+    "error": "Error",
+    "info": "Information",
+    "success": "Success",
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK",
+    "cancel": "Cancel"
+  },
+  
+  "messages": {
+    "config_warning": "Configuration validation failed:\n{error}\n\nPlease configure TMDB API Key in settings to use matching features.",
+    "no_files_selected": "Please select files in the media library first",
+    "no_rule_selected": "Please select a rename rule first",
+    "confirm_rename": "Are you sure you want to rename {count} files using rule '{rule}'?",
+    "rename_completed": "Rename completed: {success} succeeded, {failed} failed",
+    "about_title": "About SmartRenamer",
+    "about_content": "<h2>SmartRenamer v{version}</h2><p>Smart Media File Renamer</p><p>Intelligent movie and TV show file identification and renaming based on TMDB API</p><p><b>Features:</b></p><ul><li>Smart filename parsing</li><li>TMDB auto-matching</li><li>Flexible rename rules (Jinja2 templates)</li><li>Batch processing</li><li>Operation history and undo</li></ul><p><b>Developer:</b> SmartRenamer Team</p><p><b>License:</b> MIT License</p>"
+  }
+}
