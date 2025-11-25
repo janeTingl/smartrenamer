@@ -442,6 +442,13 @@ A: 默认支持 .mkv, .mp4, .avi, .mov, .wmv, .flv, .m4v, .ts 等常见格式。
 
 A: 可以创建自定义的 `RenameRule` 对象，使用 Jinja2 模板语法定义命名格式。
 
+### Q: Windows 上运行脚本出现中文乱码或编码错误怎么办？
+
+A: 项目中的所有 Python 脚本已经修复了 Windows UTF-8 编码问题（v0.9.2）。如果仍然遇到问题：
+- 确保使用最新版本的脚本
+- 所有脚本已包含 UTF-8 编码配置，无需额外设置
+- 详见 `docs/WINDOWS_UTF8_ENCODING_FIX.md`
+
 ## 许可证
 
 本项目采用 MIT 许可证。详见 LICENSE 文件。

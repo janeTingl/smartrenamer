@@ -6,27 +6,44 @@
 
 ### 修复
 
-#### Windows 字符编码问题 🔤 (v0.9.1+)
+#### Windows UTF-8 字符编码问题系统性修复 🔤✨ (v0.9.2)
 
-- **问题修复**
-  - 修复 `generate_icons.py` 在 Windows 平台的 Unicode 编码错误
-  - 原因：Windows 控制台默认使用 cp1252 编码，无法处理中文字符
+- **修复范围**
+  - ✅ **核心脚本**：`generate_icons.py` (v0.9.1)、`test_icon_compat.py`、`verify_project.py`、`test_encoding_fix.py`
+  - ✅ **构建脚本**：`scripts/build.py`
+  - ✅ **示例脚本**：`examples/` 下所有 5 个示例文件
+  - 📊 **修复总数**：10 个脚本
+
+- **问题描述**
+  - 多个脚本包含中文字符（注释、输出、文档字符串）
+  - Windows 控制台默认使用 cp1252 编码，无法处理中文
   - 错误信息：`UnicodeEncodeError: 'charmap' codec can't encode characters`
+  - 导致构建和测试流程在 Windows 上失败
 
 - **实施方案**
   - 添加 UTF-8 编码声明：`# -*- coding: utf-8 -*-`
   - 在 Windows 平台上配置 stdout/stderr 使用 UTF-8 编码
   - 使用 `sys.stdout.reconfigure(encoding='utf-8')` (Python 3.7+)
   - 兼容 Python 3.6：使用 `codecs.getwriter('utf-8')`
+  - 在任何其他导入前执行编码配置
 
 - **特点**
-  - 平台特定：仅在 Windows 上执行编码配置
-  - 版本兼容：支持 Python 3.6+
-  - 向后兼容：不影响 macOS 和 Linux 平台
-  - 自动化：无需手动设置环境变量
+  - 🎯 **系统性修复**：一次性解决所有脚本的编码问题
+  - 🖥️ **平台特定**：仅在 Windows 上执行编码配置
+  - 🔧 **版本兼容**：支持 Python 3.6+
+  - ✅ **向后兼容**：不影响 macOS 和 Linux 平台
+  - 🚀 **自动化**：无需手动设置环境变量
+  - 📝 **最佳实践**：提供清晰的新脚本开发规范
+
+- **验证测试**
+  - 创建专门的测试脚本 `test_encoding_fix.py`
+  - 测试基本中文输出、各种字符、标准输出/错误
+  - 在 Linux 环境验证通过
+  - 等待在 Windows/macOS 环境进一步验证
 
 - **文档更新**
-  - 新增 `docs/WINDOWS_ENCODING_FIX.md` - 编码问题修复报告
+  - 新增 `docs/WINDOWS_UTF8_ENCODING_FIX.md` - 系统性修复完整报告
+  - 更新 `docs/WINDOWS_ENCODING_FIX.md` - generate_icons.py 修复报告 (v0.9.1)
 
 #### Windows 图标处理问题 🖼️ (v0.9.1)
 
