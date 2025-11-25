@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 存储适配器使用示例
 
@@ -5,6 +7,20 @@
 """
 
 import sys
+import os
+
+# 配置标准输出使用 UTF-8 编码，解决 Windows 控制台中文显示问题
+if sys.platform == 'win32':
+    try:
+        # Python 3.7+
+        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding='utf-8')
+    except AttributeError:
+        # Python 3.6 及更早版本
+        import codecs
+        sys.stdout = codecs.getwriter('utf-8')(sys.stdout.detach())
+        sys.stderr = codecs.getwriter('utf-8')(sys.stderr.detach())
+
 from pathlib import Path
 
 # 添加 src 到路径
