@@ -388,6 +388,26 @@ pytest --cov=smartrenamer --cov-report=html
 
 项目遵循 PEP 8 代码规范，所有注释和文档使用简体中文。
 
+### 打包和构建
+
+如果需要构建可执行文件，请参考 [PACKAGING_GUIDE.md](PACKAGING_GUIDE.md)。
+
+**快速构建**:
+```bash
+# 安装打包依赖
+pip install pyinstaller
+
+# 执行构建
+pyinstaller --clean --noconfirm smartrenamer.spec
+
+# macOS 平台测试
+./test_macos_build.sh  # 仅限 macOS
+```
+
+**注意事项**:
+- macOS 上已修复 PyInstaller 的 Qt 框架符号链接问题
+- 详见 `docs/MACOS_PYINSTALLER_FIX.md`
+
 ### 贡献指南
 
 欢迎提交 Issue 和 Pull Request！

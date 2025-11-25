@@ -54,11 +54,17 @@ if desktop_file.exists():
     datas.append((str(desktop_file), 'assets'))
 
 # 收集 PySide6 数据文件
-try:
-    pyside6_datas = collect_data_files('PySide6', include_py_files=False)
-    datas.extend(pyside6_datas)
-except Exception as e:
-    print(f"警告: 收集 PySide6 数据文件失败: {e}")
+# 注意: 在 macOS 上，不应收集 PySide6 的框架数据文件，
+# 因为这会导致符号链接冲突（FileExistsError: Versions/Current/Resources）
+# PyInstaller 会自动处理必要的 Qt 框架依赖
+if not IS_MACOS:
+    try:
+        pyside6_datas = collect_data_files('PySide6', include_py_files=False)
+        datas.extend(pyside6_datas)
+    except Exception as e:
+        print(f"警告: 收集 PySide6 数据文件失败: {e}")
+else:
+    print("macOS 平台: 跳过 PySide6 数据文件收集，避免框架符号链接冲突")
 
 # 隐藏导入
 hiddenimports = [
@@ -239,6 +245,10 @@ elif IS_MACOS:
             'NSHighResolutionCapable': 'True',
             'NSPrincipalClass': 'NSApplication',
             'NSAppleScriptEnabled': False,
+            # 避免 Qt 框架符号链接问题
+            'LSEnvironment': {
+                'QT_MAC_WANTS_LAYER': '1',
+            },
         },
     )
 

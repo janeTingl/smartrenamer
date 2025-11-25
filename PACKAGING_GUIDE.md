@@ -487,6 +487,30 @@ sudo xattr -r -d com.apple.quarantine SmartRenamer.app
 - 检查文件权限
 - 使用 `diskutil list` 查看挂载的卷
 
+#### 问题: PyInstaller Qt 框架符号链接冲突
+
+**错误信息**:
+```
+FileExistsError: [Errno 17] File exists: 'Versions/Current/Resources'
+```
+
+**原因**:
+PyInstaller 6.x 在处理 PySide6 的 Qt 框架时，会遇到 macOS 框架符号链接的冲突问题。
+
+**解决方案**:
+已在 `smartrenamer.spec` 中修复，无需额外操作。修复方法：
+
+1. macOS 上跳过手动收集 PySide6 数据文件
+2. 让 PyInstaller 自动处理 Qt 框架依赖
+3. 避免符号链接的重复创建
+
+详细信息参考：`docs/MACOS_PYINSTALLER_FIX.md`
+
+**验证修复**:
+```bash
+./test_macos_build.sh
+```
+
 ### Linux
 
 #### 问题: 缺少共享库

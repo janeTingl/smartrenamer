@@ -70,6 +70,49 @@
 - `examples/storage_example.py` - 使用示例
 - `CLOUD_STORAGE_GUIDE.md` - 使用指南
 
+### 修复
+
+#### PyInstaller macOS 框架符号链接问题 🔧 (v0.9.1)
+
+- **问题描述**
+  - PyInstaller 6.x 在 macOS 上打包 PySide6 应用时遇到符号链接冲突
+  - 错误：`FileExistsError: [Errno 17] File exists: 'Versions/Current/Resources'`
+  - 发生在处理 Qt3DAnimation.framework 等 Qt 框架时
+
+- **修复方案**
+  - 在 `smartrenamer.spec` 中条件化 PySide6 数据文件收集
+  - macOS 平台跳过 `collect_data_files('PySide6')`
+  - 依赖 PyInstaller 自动处理 Qt 框架
+  - 避免框架符号链接的重复创建
+
+- **技术细节**
+  - 修改 Analysis 阶段的数据收集逻辑
+  - 仅在 Windows 和 Linux 上收集 PySide6 数据文件
+  - macOS 上让 PyInstaller 自动检测和打包框架
+  - 优化 BUNDLE 配置，添加 Qt 环境变量
+
+- **测试验证**
+  - 创建 `test_macos_build.sh` 自动化测试脚本
+  - 验证 spec 文件配置正确性
+  - 检查构建产物和框架结构
+  - 测试应用启动和基本功能
+
+- **文档更新**
+  - 新增 `docs/MACOS_PYINSTALLER_FIX.md` - 详细修复报告
+  - 更新 `PACKAGING_GUIDE.md` - 添加故障排除条目
+  - 更新内存 (Memory) - PyInstaller 最佳实践
+
+**影响范围：**
+- `smartrenamer.spec` - PyInstaller 配置文件
+- `test_macos_build.sh` - macOS 构建测试脚本
+- `docs/MACOS_PYINSTALLER_FIX.md` - 新增文档
+- `PACKAGING_GUIDE.md` - 故障排除更新
+
+**兼容性：**
+- ✅ Windows: 不受影响（继续使用原有逻辑）
+- ✅ macOS: 修复符号链接问题
+- ✅ Linux: 不受影响（继续使用原有逻辑）
+
 ### 维护更新
 
 #### GitHub Actions 升级 🔧
