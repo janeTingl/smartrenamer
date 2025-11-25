@@ -22,7 +22,7 @@ pip3 install pyinstaller
 # 清理旧的构建
 echo ""
 echo "2. 清理旧的构建..."
-rm -rf build dist *.spec
+rm -rf build dist
 
 # 运行构建脚本
 echo ""

@@ -5,7 +5,7 @@ set -e
 
 # 配置
 APP_NAME="SmartRenamer"
-VERSION="0.6.0"
+VERSION="0.9.0"
 APP_BUNDLE="../../dist/${APP_NAME}.app"
 DMG_NAME="${APP_NAME}-${VERSION}-macOS"
 DMG_PATH="../../dist/${DMG_NAME}.dmg"

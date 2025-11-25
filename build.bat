@@ -23,7 +23,6 @@ echo.
 echo 2. 清理旧的构建...
 if exist build rmdir /s /q build
 if exist dist rmdir /s /q dist
-if exist *.spec del /q *.spec
 
 REM 运行构建脚本
 echo.
