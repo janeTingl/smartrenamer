@@ -4,6 +4,39 @@
 
 ## [未发布]
 
+### 修复
+
+#### Windows 图标处理问题 🖼️ (v0.9.1)
+
+- **问题修复**
+  - 修复 PyInstaller 在 Windows 平台无法处理图标文件的问题
+  - 原因：图标文件是文本占位符，而非有效的图像文件
+  - 错误信息：`Something went wrong converting icon image ... image format is unsupported`
+
+- **图标文件生成**
+  - 创建 `generate_icons.py` 脚本自动生成有效的图标文件
+  - 生成 Windows ICO（多尺寸：16-256px）
+  - 生成 macOS ICNS（iconset，16-1024px）
+  - 生成 PNG（512x512）
+  - 图标设计：蓝色背景 + "SR" 字母
+
+- **图标验证工具**
+  - 创建 `test_icon_compat.py` 脚本验证图标兼容性
+  - 测试 Pillow 兼容性
+  - 测试 PyInstaller 兼容性
+  - 验证 ICO 文件格式和头部
+
+- **构建流程优化**
+  - 更新 `scripts/build.py` 自动生成图标
+  - 更新 GitHub Actions 工作流添加图标生成步骤
+  - 更新文档说明图标生成流程
+
+- **文档更新**
+  - 新增 `WINDOWS_ICON_FIX.md` - 问题修复报告
+  - 新增 `.github/ICON_BUILD_PROCESS.md` - 图标构建流程说明
+  - 更新 `README.md` - 添加图标生成说明
+  - 更新 `assets/README.md` - 更新当前图标说明
+
 ### 新增功能
 
 #### 网盘存储集成 ☁️ (v0.9.0)

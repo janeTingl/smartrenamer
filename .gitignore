@@ -79,3 +79,7 @@ media/
 # 构建产物
 checksums*.txt
 release/
+
+# 图标生成临时文件
+assets/*.iconset/
+*.iconset/

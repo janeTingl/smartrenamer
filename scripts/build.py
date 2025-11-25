@@ -103,6 +103,28 @@ class Builder:
                 self.log(f'删除: {dir_path}')
                 shutil.rmtree(dir_path)
                 
+    def generate_icons(self):
+        """生成应用图标"""
+        self.log('生成应用图标...')
+        
+        icon_script = self.project_root / 'generate_icons.py'
+        
+        if not icon_script.exists():
+            self.log('图标生成脚本不存在，跳过', 'WARNING')
+            return True
+            
+        # 检查是否已存在有效的图标文件
+        assets_dir = self.project_root / 'assets'
+        icon_ico = assets_dir / 'icon.ico'
+        
+        if icon_ico.exists() and icon_ico.stat().st_size > 10000:
+            self.log('图标文件已存在且有效，跳过生成')
+            return True
+            
+        # 运行图标生成脚本
+        self.log('运行图标生成脚本...')
+        return self.run_command([sys.executable, str(icon_script)])
+    
     def build_executable(self):
         """构建可执行文件"""
         self.log('构建可执行文件...')
@@ -239,6 +261,11 @@ class Builder:
         if not self.install_dependencies():
             self.log('依赖安装失败', 'ERROR')
             return False
+            
+        # 生成图标
+        if not self.generate_icons():
+            self.log('图标生成失败', 'WARNING')
+            # 不返回 False，继续构建
             
         # 构建可执行文件
         if not self.build_executable():

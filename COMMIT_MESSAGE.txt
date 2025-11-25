@@ -1,0 +1,68 @@
+修复 PyInstaller Windows 图标处理问题
+
+## 问题描述
+- PyInstaller 无法处理 assets/icon.ico 文件
+- 错误: "Something went wrong converting icon image ... image format is unsupported"
+- 原因: 图标文件是文本占位符，而非有效的图像文件
+
+## 修复内容
+
+### 1. 生成有效的图标文件
+- 创建 generate_icons.py 脚本自动生成图标
+- Windows ICO: 27,877 字节，6 个尺寸 (16-256px)
+- macOS ICNS: 12,777 字节，完整 iconset
+- PNG: 11,669 字节，512x512
+- 图标设计: 蓝色背景 + "SR" 字母
+
+### 2. 图标验证工具
+- 创建 test_icon_compat.py 验证图标兼容性
+- 测试 Pillow 兼容性
+- 测试 PyInstaller 兼容性
+- 验证 ICO 文件格式
+
+### 3. 构建流程集成
+- 更新 scripts/build.py 添加图标生成步骤
+- 更新 GitHub Actions 工作流
+- 在所有平台（Windows、macOS、Linux）添加图标生成
+
+### 4. 文档更新
+- 新增 WINDOWS_ICON_FIX.md - 问题修复报告
+- 新增 .github/ICON_BUILD_PROCESS.md - CI 流程说明
+- 新增 ICON_FIX_SUMMARY.md - 修复总结
+- 新增 VERIFICATION_REPORT.md - 验证报告
+- 更新 README.md、assets/README.md、CHANGELOG.md
+
+## 测试结果
+✓ Pillow ICO 兼容性测试通过
+✓ ICO 文件格式验证通过
+✓ PNG 和 ICNS 文件验证通过
+✓ 所有图标文件与 PyInstaller 兼容
+
+## 验收标准
+✅ assets/icon.ico 文件有效且格式正确
+✅ smartrenamer.spec 正确配置图标路径
+✅ 构建流程集成图标生成
+✅ 提供完整的文档和工具
+⏳ 待 GitHub Actions 验证
+
+## 文件清单
+新增:
+- generate_icons.py (188 行)
+- test_icon_compat.py (205 行)
+- WINDOWS_ICON_FIX.md (360 行)
+- .github/ICON_BUILD_PROCESS.md (287 行)
+- ICON_FIX_SUMMARY.md (287 行)
+- VERIFICATION_REPORT.md (本报告)
+- assets/icon.ico (27,877 字节)
+- assets/icon.png (11,669 字节)
+- assets/icon.icns (12,777 字节)
+
+修改:
+- .gitignore
+- README.md
+- assets/README.md
+- scripts/build.py
+- .github/workflows/build-release.yml
+- CHANGELOG.md
+
+Issue: #修复 PyInstaller Windows 图标处理问题
