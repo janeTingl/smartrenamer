@@ -79,11 +79,18 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       
+      - name: 转换镜像名为小写
+        if: github.event_name != 'pull_request'
+        id: lowercase
+        run: |
+          IMAGE_LOWER=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" | tr '[:upper:]' '[:lower:]')
+          echo "image=$IMAGE_LOWER" >> $GITHUB_OUTPUT
+      
       - name: 镜像安全扫描
         if: github.event_name != 'pull_request'
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          image-ref: ${{ steps.lowercase.outputs.image }}
           format: 'sarif'
           output: 'trivy-results.sarif'
       
@@ -114,20 +121,26 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       
+      - name: 转换镜像名为小写
+        id: lowercase
+        run: |
+          IMAGE_LOWER=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
+          echo "image=$IMAGE_LOWER" >> $GITHUB_OUTPUT
+      
       - name: 拉取镜像
         run: |
-          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          docker pull ${{ steps.lowercase.outputs.image }}:${{ github.sha }}
       
       - name: 测试镜像 - ${{ matrix.mode }}
         run: |
           docker run --rm \
             -e TMDB_API_KEY=test_key_for_ci \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            ${{ steps.lowercase.outputs.image }}:${{ github.sha }} \
             ${{ matrix.mode }}
       
       - name: 检查镜像大小
         run: |
-          SIZE=$(docker image inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} --format='{{.Size}}')
+          SIZE=$(docker image inspect ${{ steps.lowercase.outputs.image }}:${{ github.sha }} --format='{{.Size}}')
           SIZE_MB=$((SIZE / 1024 / 1024))
           echo "镜像大小: ${SIZE_MB}MB"
           
