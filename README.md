@@ -392,6 +392,15 @@ pytest --cov=smartrenamer --cov-report=html
 
 如果需要构建可执行文件，请参考 [PACKAGING_GUIDE.md](PACKAGING_GUIDE.md)。
 
+**生成图标文件**（首次构建或图标需要更新时）:
+```bash
+# 生成所有平台的图标文件
+python3 generate_icons.py
+
+# 验证图标兼容性
+python3 test_icon_compat.py
+```
+
 **快速构建**:
 ```bash
 # 安装打包依赖
@@ -407,6 +416,7 @@ pyinstaller --clean --noconfirm smartrenamer.spec
 **注意事项**:
 - macOS 上已修复 PyInstaller 的 Qt 框架符号链接问题
 - 详见 `docs/MACOS_PYINSTALLER_FIX.md`
+- Windows 图标处理问题已修复，详见 `WINDOWS_ICON_FIX.md`
 
 ### 贡献指南
 

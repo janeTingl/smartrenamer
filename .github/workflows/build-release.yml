@@ -36,6 +36,14 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller pywin32
       
+      - name: 生成应用图标
+        run: |
+          python generate_icons.py
+      
+      - name: 验证图标文件
+        run: |
+          python test_icon_compat.py
+      
       - name: 构建可执行文件
         run: |
           pyinstaller --clean --noconfirm smartrenamer.spec
@@ -95,6 +103,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
+      
+      - name: 生成应用图标
+        run: |
+          python generate_icons.py
       
       - name: 构建应用包
         run: |
@@ -163,6 +175,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
+      
+      - name: 生成应用图标
+        run: |
+          python generate_icons.py
       
       - name: 构建可执行文件
         run: |
