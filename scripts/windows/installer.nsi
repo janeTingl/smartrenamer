@@ -11,7 +11,7 @@
 
 ; 应用程序名称和版本
 !define APP_NAME "SmartRenamer"
-!define APP_VERSION "0.6.0"
+!define APP_VERSION "0.9.0"
 !define APP_PUBLISHER "SmartRenamer Team"
 !define APP_URL "https://github.com/smartrenamer/smartrenamer"
 !define APP_EXE "SmartRenamer.exe"

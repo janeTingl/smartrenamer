@@ -5,7 +5,7 @@ set -e
 
 # 配置
 APP_NAME="SmartRenamer"
-VERSION="0.6.0"
+VERSION="0.9.0"
 ARCH=$(uname -m)
 APPIMAGE_NAME="${APP_NAME}-${VERSION}-${ARCH}.AppImage"
 DIST_DIR="../../dist"
@@ -26,9 +26,9 @@ else
     APPIMAGETOOL="appimagetool"
 fi
 
-# 检查可执行文件
-if [ ! -f "${DIST_DIR}/SmartRenamer" ]; then
-    echo "错误: 可执行文件不存在: ${DIST_DIR}/SmartRenamer"
+# 检查 PyInstaller 输出目录
+if [ ! -d "${DIST_DIR}/${APP_NAME}" ]; then
+    echo "错误: PyInstaller 输出目录不存在: ${DIST_DIR}/${APP_NAME}"
     echo "请先运行 PyInstaller 构建应用"
     exit 1
 fi
@@ -37,21 +37,13 @@ fi
 echo "创建 AppDir 结构..."
 rm -rf "$BUILD_DIR"
 mkdir -p "$APPDIR"
-mkdir -p "$APPDIR/usr/bin"
-mkdir -p "$APPDIR/usr/lib"
 mkdir -p "$APPDIR/usr/share/applications"
 mkdir -p "$APPDIR/usr/share/icons/hicolor/256x256/apps"
 
-# 复制可执行文件
-echo "复制可执行文件..."
-cp "${DIST_DIR}/SmartRenamer" "$APPDIR/usr/bin/"
-chmod +x "$APPDIR/usr/bin/SmartRenamer"
-
-# 复制依赖库（如果有）
-if [ -d "${DIST_DIR}/_internal" ]; then
-    echo "复制依赖库..."
-    cp -R "${DIST_DIR}/_internal" "$APPDIR/usr/lib/"
-fi
+# 复制整个 PyInstaller 输出目录
+echo "复制 PyInstaller 输出..."
+cp -R "${DIST_DIR}/${APP_NAME}" "$APPDIR/usr/bin"
+chmod +x "$APPDIR/usr/bin/${APP_NAME}/${APP_NAME}"
 
 # 创建 desktop 文件
 echo "创建 desktop 文件..."
@@ -81,22 +73,22 @@ cat > "$APPDIR/AppRun" << 'EOF'
 # AppImage 启动脚本
 
 APPDIR="$(dirname "$(readlink -f "$0")")"
-export LD_LIBRARY_PATH="${APPDIR}/usr/lib:${LD_LIBRARY_PATH}"
-export PATH="${APPDIR}/usr/bin:${PATH}"
+export LD_LIBRARY_PATH="${APPDIR}/usr/bin/SmartRenamer:${LD_LIBRARY_PATH}"
 
 # 设置 Qt 平台插件路径
-export QT_PLUGIN_PATH="${APPDIR}/usr/lib/_internal/PySide6/Qt/plugins"
-export QT_QPA_PLATFORM_PLUGIN_PATH="${APPDIR}/usr/lib/_internal/PySide6/Qt/plugins/platforms"
+if [ -d "${APPDIR}/usr/bin/SmartRenamer/_internal/PySide6/Qt/plugins" ]; then
+    export QT_PLUGIN_PATH="${APPDIR}/usr/bin/SmartRenamer/_internal/PySide6/Qt/plugins"
+    export QT_QPA_PLATFORM_PLUGIN_PATH="${APPDIR}/usr/bin/SmartRenamer/_internal/PySide6/Qt/plugins/platforms"
+fi
 
 # 运行应用
-exec "${APPDIR}/usr/bin/SmartRenamer" "$@"
+exec "${APPDIR}/usr/bin/SmartRenamer/SmartRenamer" "$@"
 EOF
 
 chmod +x "$APPDIR/AppRun"
 
 # 创建符号链接
 ln -sf usr/share/applications/${APP_NAME}.desktop "$APPDIR/${APP_NAME}.desktop"
-ln -sf usr/bin/SmartRenamer "$APPDIR/AppRun"
 
 # 构建 AppImage
 echo "构建 AppImage..."
