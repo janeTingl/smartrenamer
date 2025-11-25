@@ -6,6 +6,28 @@
 
 ### 修复
 
+#### Windows 字符编码问题 🔤 (v0.9.1+)
+
+- **问题修复**
+  - 修复 `generate_icons.py` 在 Windows 平台的 Unicode 编码错误
+  - 原因：Windows 控制台默认使用 cp1252 编码，无法处理中文字符
+  - 错误信息：`UnicodeEncodeError: 'charmap' codec can't encode characters`
+
+- **实施方案**
+  - 添加 UTF-8 编码声明：`# -*- coding: utf-8 -*-`
+  - 在 Windows 平台上配置 stdout/stderr 使用 UTF-8 编码
+  - 使用 `sys.stdout.reconfigure(encoding='utf-8')` (Python 3.7+)
+  - 兼容 Python 3.6：使用 `codecs.getwriter('utf-8')`
+
+- **特点**
+  - 平台特定：仅在 Windows 上执行编码配置
+  - 版本兼容：支持 Python 3.6+
+  - 向后兼容：不影响 macOS 和 Linux 平台
+  - 自动化：无需手动设置环境变量
+
+- **文档更新**
+  - 新增 `docs/WINDOWS_ENCODING_FIX.md` - 编码问题修复报告
+
 #### Windows 图标处理问题 🖼️ (v0.9.1)
 
 - **问题修复**
