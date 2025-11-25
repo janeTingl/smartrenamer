@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 生成 SmartRenamer 应用图标
 
@@ -6,8 +7,22 @@
 图标包含 "SR" 字母，代表 SmartRenamer。
 """
 
-from PIL import Image, ImageDraw, ImageFont
+import sys
 import os
+
+# 配置标准输出使用 UTF-8 编码，解决 Windows 控制台中文显示问题
+if sys.platform == 'win32':
+    try:
+        # Python 3.7+
+        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding='utf-8')
+    except AttributeError:
+        # Python 3.6 及更早版本
+        import codecs
+        sys.stdout = codecs.getwriter('utf-8')(sys.stdout.detach())
+        sys.stderr = codecs.getwriter('utf-8')(sys.stderr.detach())
+
+from PIL import Image, ImageDraw, ImageFont
 
 def create_base_icon(size=512):
     """
