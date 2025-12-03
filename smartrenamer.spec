@@ -22,7 +22,7 @@ i18n_dir = project_root / 'i18n'
 
 # 应用基本信息
 APP_NAME = 'SmartRenamer'
-APP_VERSION = '0.9.0'
+APP_VERSION = '1.0.0'
 
 # 收集数据文件
 datas = []
