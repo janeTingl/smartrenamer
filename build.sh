@@ -1,12 +1,20 @@
 #!/bin/bash
-# SmartRenamer 快速构建脚本（Linux/macOS）
+# SmartRenamer 快速构建脚本（仅支持 macOS）
 
 set -e
 
 echo "======================================"
-echo "SmartRenamer 快速构建脚本"
+echo "SmartRenamer macOS 构建脚本"
 echo "======================================"
 echo ""
+
+# 检查是否在 macOS 上运行
+if [[ "$(uname -s)" != "Darwin" ]]; then
+    echo "错误: 此构建脚本仅支持 macOS 平台"
+    echo "当前平台: $(uname -s)"
+    echo "请在 macOS 系统上运行此脚本"
+    exit 1
+fi
 
 # 检查 Python
 if ! command -v python3 &> /dev/null; then
@@ -31,6 +39,8 @@ python3 scripts/build.py --clean
 
 echo ""
 echo "======================================"
-echo "构建完成！"
-echo "可执行文件位于 dist/ 目录"
+echo "macOS 构建完成！"
+echo "生成文件位于 dist/ 目录"
+echo "  - SmartRenamer.app"
+echo "  - SmartRenamer-macOS.dmg"
 echo "======================================"
