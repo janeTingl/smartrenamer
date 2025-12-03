@@ -1,43 +1,37 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-SmartRenamer 跨平台构建脚本
+SmartRenamer macOS 构建脚本
 
 自动化构建流程：
-1. 检查构建环境
+1. 检查构建环境（仅支持 macOS）
 2. 安装依赖
 3. 执行 PyInstaller 打包
-4. 创建安装程序（Windows）或 DMG（macOS）或 AppImage（Linux）
+4. 创建 DMG 镜像
 5. 生成校验和
 """
 
 import sys
 import os
-
-# 配置标准输出使用 UTF-8 编码，解决 Windows 控制台中文显示问题
-if sys.platform == 'win32':
-    try:
-        # Python 3.7+
-        sys.stdout.reconfigure(encoding='utf-8')
-        sys.stderr.reconfigure(encoding='utf-8')
-    except AttributeError:
-        # Python 3.6 及更早版本
-        import codecs
-        sys.stdout = codecs.getwriter('utf-8')(sys.stdout.detach())
-        sys.stderr = codecs.getwriter('utf-8')(sys.stderr.detach())
-
 import platform
 import subprocess
 import shutil
 from pathlib import Path
 import argparse
 
+# 仅支持 macOS - 快速失败
+if platform.system() != 'Darwin':
+    print(f'错误: 此构建脚本仅支持 macOS 平台', file=sys.stderr)
+    print(f'当前平台: {platform.system()}', file=sys.stderr)
+    print(f'请在 macOS 系统上运行此脚本', file=sys.stderr)
+    sys.exit(1)
+
 
 class Builder:
-    """SmartRenamer 构建器"""
+    """SmartRenamer macOS 构建器"""
     
     def __init__(self, clean=False, debug=False):
-        self.platform = platform.system().lower()
+        self.platform = 'darwin'  # macOS only
         self.clean = clean
         self.debug = debug
         self.project_root = Path(__file__).parent.parent
@@ -93,15 +87,8 @@ class Builder:
         if not self.run_command([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt']):
             return False
             
-        # 安装构建工具
+        # 安装构建工具（macOS）
         build_deps = ['pyinstaller']
-        
-        if self.platform == 'windows':
-            build_deps.append('pywin32')
-        elif self.platform == 'darwin':
-            pass  # macOS 使用 PyInstaller
-        elif self.platform == 'linux':
-            pass  # Linux 后续添加 AppImage 工具
             
         if not self.run_command([sys.executable, '-m', 'pip', 'install'] + build_deps):
             return False
@@ -158,21 +145,6 @@ class Builder:
             
         return self.run_command(command)
         
-    def create_windows_installer(self):
-        """创建 Windows 安装程序（NSIS）"""
-        self.log('创建 Windows 安装程序...')
-        
-        nsis_script = self.project_root / 'scripts' / 'windows' / 'installer.nsi'
-        
-        # 检查 NSIS 是否安装
-        nsis_path = shutil.which('makensis')
-        if not nsis_path:
-            self.log('未找到 NSIS，跳过安装程序创建', 'WARNING')
-            self.log('可以从 https://nsis.sourceforge.io/ 下载 NSIS', 'INFO')
-            return True
-            
-        return self.run_command(['makensis', str(nsis_script)])
-        
     def create_macos_dmg(self):
         """创建 macOS DMG 镜像"""
         self.log('创建 macOS DMG 镜像...')
@@ -216,27 +188,13 @@ class Builder:
         
         return result
         
-    def create_linux_appimage(self):
-        """创建 Linux AppImage"""
-        self.log('创建 Linux AppImage...')
-        self.log('AppImage 构建需要额外工具，请参考 PACKAGING_GUIDE.md', 'INFO')
-        return True
-        
     def create_installer(self):
-        """创建平台特定的安装程序"""
-        if self.platform == 'windows':
-            return self.create_windows_installer()
-        elif self.platform == 'darwin':
-            return self.create_macos_dmg()
-        elif self.platform == 'linux':
-            return self.create_linux_appimage()
-        else:
-            self.log(f'不支持的平台: {self.platform}', 'ERROR')
-            return False
+        """创建 macOS DMG 镜像"""
+        return self.create_macos_dmg()
             
     def generate_checksums(self):
-        """生成校验和文件"""
-        self.log('生成校验和...')
+        """生成 macOS 输出文件的校验和"""
+        self.log('生成 macOS 输出文件校验和...')
         
         import hashlib
         
@@ -253,14 +211,14 @@ class Builder:
                     
                     checksum = sha256_hash.hexdigest()
                     f.write(f'{checksum}  {file_path.name}\n')
-                    self.log(f'{file_path.name}: {checksum}')
+                    self.log(f'macOS 输出: {file_path.name}: {checksum}')
                     
         return True
         
     def build(self):
         """执行完整构建流程"""
         self.log('=' * 60)
-        self.log('SmartRenamer 构建脚本')
+        self.log('SmartRenamer macOS 构建脚本')
         self.log('=' * 60)
         
         # 检查环境
@@ -286,18 +244,19 @@ class Builder:
             self.log('可执行文件构建失败', 'ERROR')
             return False
             
-        # 创建安装程序
+        # 创建 DMG 镜像
         if not self.create_installer():
-            self.log('安装程序创建失败', 'WARNING')
-            # 不返回 False，因为可执行文件已经生成
+            self.log('DMG 镜像创建失败', 'WARNING')
+            # 不返回 False，因为 .app 文件已经生成
             
         # 生成校验和
         if not self.generate_checksums():
             self.log('校验和生成失败', 'WARNING')
             
         self.log('=' * 60)
-        self.log('构建完成！')
+        self.log('macOS 构建完成！')
         self.log(f'输出目录: {self.dist_dir}')
+        self.log(f'生成文件: SmartRenamer.app 和 SmartRenamer-macOS.dmg')
         self.log('=' * 60)
         
         return True
@@ -305,7 +264,7 @@ class Builder:
 
 def main():
     """主函数"""
-    parser = argparse.ArgumentParser(description='SmartRenamer 构建脚本')
+    parser = argparse.ArgumentParser(description='SmartRenamer macOS 构建脚本')
     parser.add_argument('--clean', action='store_true', help='清理构建目录')
     parser.add_argument('--debug', action='store_true', help='调试模式')
     
