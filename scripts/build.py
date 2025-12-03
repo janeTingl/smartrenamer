@@ -116,9 +116,9 @@ class Builder:
             
         # 检查是否已存在有效的图标文件
         assets_dir = self.project_root / 'assets'
-        icon_ico = assets_dir / 'icon.ico'
+        icon_icns = assets_dir / 'icon.icns'
         
-        if icon_ico.exists() and icon_ico.stat().st_size > 10000:
+        if icon_icns.exists() and icon_icns.stat().st_size > 10000:
             self.log('图标文件已存在且有效，跳过生成')
             return True
             
