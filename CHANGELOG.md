@@ -4,6 +4,64 @@
 
 ## [未发布]
 
+## [0.10.0] - 2024-12-03
+
+### 重大变更 ⚠️
+
+#### 停止 Windows 和 Linux 支持 🍎
+
+**SmartRenamer 现在专注于 macOS 平台**
+
+- **平台支持变更**
+  - ✅ **macOS**: 继续完全支持（Intel + Apple Silicon）
+  - ❌ **Windows**: 停止支持，不再提供可执行文件和安装程序
+  - ❌ **Linux**: 停止支持，不再提供 AppImage 和其他打包格式
+  - ❌ **Docker**: 不再维护，相关文档已过时
+
+- **变更原因**
+  - 专注于提供更好的 macOS 原生体验
+  - 充分利用 macOS 的原生功能和设计理念
+  - 减少跨平台兼容性问题，降低维护成本
+  - 提供更快的功能更新和更好的用户支持
+
+- **用户影响**
+  - macOS 用户：无影响，继续享受完整支持和更新
+  - Windows/Linux 用户：可以使用 v0.6.0-v0.9.x 旧版本，或通过 Python 源码安装
+  - 旧版本仍可从 GitHub Releases 下载，但不再更新
+
+### 文档更新
+
+#### 全面更新为 macOS 专用文档
+
+- **README.md**
+  - 移除 Windows 和 Linux 安装说明
+  - 突出显示 macOS 专用安装方式
+  - 更新系统要求和快速开始指南
+  - 添加平台变更说明
+
+- **PACKAGING_GUIDE.md**
+  - 完全重写为 macOS 专用打包指南
+  - 移除 Windows 和 Linux 打包流程
+  - 详细说明 macOS .app 和 DMG 创建流程
+  - 更新签名和公证说明
+
+- **SYSTEM_REQUIREMENTS.md**
+  - 仅保留 macOS 系统要求
+  - 移除 Windows 和 Linux 相关内容
+  - 详细说明 Intel 和 Apple Silicon 支持
+  - 更新兼容性测试矩阵
+
+- **PACKAGING_CHECKLIST.md**
+  - 更新为 macOS 专用检查清单
+  - 移除跨平台相关检查项
+  - 添加已移除内容说明
+
+- **CROSS_PLATFORM_PACKAGING_SUMMARY.md**
+  - 重命名为平台支持变更说明
+  - 记录从跨平台到 macOS 专用的变更历史
+  - 提供迁移指南
+  - 说明已移除的文件和功能
+
 ### 修复
 
 #### Windows UTF-8 字符编码问题系统性修复 🔤✨ (v0.9.2)

@@ -75,28 +75,11 @@ SmartRenamer 可以帮助您：
 
 ## 安装说明
 
-SmartRenamer 提供多种安装方式，选择最适合您的方式：
+> **重要提示**: SmartRenamer 现在专注于 macOS 平台。Windows 和 Linux 支持已停止开发。
 
-### 方式 1: 下载可执行文件（推荐）⭐
+### 方式 1: 下载 DMG 镜像（推荐）⭐
 
-最简单的方式是直接下载对应平台的可执行文件，无需安装 Python 环境。
-
-#### Windows
-
-从 [GitHub Releases](https://github.com/smartrenamer/smartrenamer/releases) 下载：
-- `SmartRenamer-Windows-Setup.exe` - 安装程序（推荐）
-- `SmartRenamer-Windows-Portable.zip` - 便携版
-
-**安装程序使用**:
-1. 双击运行 `SmartRenamer-Windows-Setup.exe`
-2. 按照向导完成安装
-3. 从开始菜单或桌面快捷方式启动
-
-**便携版使用**:
-1. 解压 ZIP 文件
-2. 双击 `SmartRenamer.exe` 运行
-
-#### macOS
+最简单的方式是直接下载 macOS DMG 镜像，无需安装 Python 环境。
 
 从 [GitHub Releases](https://github.com/smartrenamer/smartrenamer/releases) 下载：
 - `SmartRenamer-macOS.dmg` - DMG 镜像（支持 Intel 和 Apple Silicon）
@@ -106,41 +89,12 @@ SmartRenamer 提供多种安装方式，选择最适合您的方式：
 2. 将 SmartRenamer 拖到 Applications 文件夹
 3. 首次运行可能需要在"系统偏好设置 > 安全性与隐私"中允许
 
-#### Linux
+**系统要求**:
+- macOS 10.13 (High Sierra) 或更高版本
+- 推荐 macOS 11 (Big Sur) 或更高版本
+- 支持 Intel 和 Apple Silicon (M1/M2) 处理器
 
-从 [GitHub Releases](https://github.com/smartrenamer/smartrenamer/releases) 下载：
-- `SmartRenamer-Linux-x86_64.AppImage` - AppImage 便携版
-
-**使用方法**:
-```bash
-# 1. 下载 AppImage
-wget https://github.com/smartrenamer/smartrenamer/releases/latest/download/SmartRenamer-Linux-x86_64.AppImage
-
-# 2. 添加执行权限
-chmod +x SmartRenamer-Linux-x86_64.AppImage
-
-# 3. 运行
-./SmartRenamer-Linux-x86_64.AppImage
-```
-
-### 方式 2: Docker（跨平台）🐳
-
-使用 Docker 是最简单的跨平台方式，无需手动配置环境：
-
-```bash
-# 快速启动（自动配置）
-./docker-quickstart.sh
-
-# 或使用 Docker Compose
-docker-compose up
-
-# 或使用 Make
-make gui
-```
-
-详细说明请参考 [Docker 使用指南](DOCKER_USAGE.md)
-
-### 方式 3: Python 源码安装（开发者）
+### 方式 2: Python 源码安装（开发者）
 
 适合开发者或需要自定义的高级用户。
 
@@ -161,12 +115,7 @@ cd smartrenamer
 2. **创建虚拟环境（推荐）**
 
 ```bash
-python -m venv venv
-
-# Windows
-venv\Scripts\activate
-
-# Linux/macOS
+python3 -m venv venv
 source venv/bin/activate
 ```
 
@@ -392,31 +341,25 @@ pytest --cov=smartrenamer --cov-report=html
 
 如果需要构建可执行文件，请参考 [PACKAGING_GUIDE.md](PACKAGING_GUIDE.md)。
 
-**生成图标文件**（首次构建或图标需要更新时）:
-```bash
-# 生成所有平台的图标文件
-python3 generate_icons.py
-
-# 验证图标兼容性
-python3 test_icon_compat.py
-```
-
-**快速构建**:
+**macOS 打包构建**:
 ```bash
 # 安装打包依赖
 pip install pyinstaller
 
+# 生成应用图标
+python3 generate_icons.py
+
 # 执行构建
 pyinstaller --clean --noconfirm smartrenamer.spec
 
-# macOS 平台测试
-./test_macos_build.sh  # 仅限 macOS
+# 创建 DMG 镜像
+cd scripts/macos
+./create_dmg.sh
 ```
 
 **注意事项**:
 - macOS 上已修复 PyInstaller 的 Qt 框架符号链接问题
 - 详见 `docs/MACOS_PYINSTALLER_FIX.md`
-- Windows 图标处理问题已修复，详见 `WINDOWS_ICON_FIX.md`
 
 ### 贡献指南
 
@@ -442,12 +385,9 @@ A: 默认支持 .mkv, .mp4, .avi, .mov, .wmv, .flv, .m4v, .ts 等常见格式。
 
 A: 可以创建自定义的 `RenameRule` 对象，使用 Jinja2 模板语法定义命名格式。
 
-### Q: Windows 上运行脚本出现中文乱码或编码错误怎么办？
+### Q: 为什么不再支持 Windows 和 Linux？
 
-A: 项目中的所有 Python 脚本已经修复了 Windows UTF-8 编码问题（v0.9.2）。如果仍然遇到问题：
-- 确保使用最新版本的脚本
-- 所有脚本已包含 UTF-8 编码配置，无需额外设置
-- 详见 `docs/WINDOWS_UTF8_ENCODING_FIX.md`
+A: SmartRenamer 现在专注于为 macOS 平台提供最佳体验。这使我们能够更好地利用 macOS 的原生功能和设计理念。如果您需要在其他平台上使用，可以通过 Python 源码安装的方式运行。
 
 ## 许可证
 
