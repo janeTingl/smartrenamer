@@ -1,12 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-SmartRenamer PyInstaller 配置文件
+SmartRenamer PyInstaller 配置文件 (macOS)
 
-此文件用于配置 PyInstaller 的打包行为，包括：
+此文件用于配置 PyInstaller 的 macOS 打包行为，包括：
 - 应用入口点
 - 隐藏导入模块
 - 数据文件和资源
-- 平台特定设置
+- macOS 应用包配置
 """
 
 import sys
@@ -19,11 +19,6 @@ project_root = Path(SPECPATH)
 src_dir = project_root / 'src'
 assets_dir = project_root / 'assets'
 i18n_dir = project_root / 'i18n'
-
-# 检测平台
-IS_WINDOWS = sys.platform.startswith('win')
-IS_MACOS = sys.platform == 'darwin'
-IS_LINUX = sys.platform.startswith('linux')
 
 # 应用基本信息
 APP_NAME = 'SmartRenamer'
@@ -43,28 +38,15 @@ if themes_dir.exists():
     for qss_file in themes_dir.glob('*.qss'):
         datas.append((str(qss_file), 'assets/themes'))
 
-# 添加图标文件
-for icon_file in assets_dir.glob('icon.*'):
-    if icon_file.suffix in ['.png', '.ico', '.icns']:
-        datas.append((str(icon_file), 'assets'))
+# 添加 macOS 图标文件
+icon_icns = assets_dir / 'icon.icns'
+if icon_icns.exists():
+    datas.append((str(icon_icns), 'assets'))
 
-# 添加 .desktop 文件（Linux）
-desktop_file = assets_dir / 'smartrenamer.desktop'
-if desktop_file.exists():
-    datas.append((str(desktop_file), 'assets'))
-
-# 收集 PySide6 数据文件
-# 注意: 在 macOS 上，不应收集 PySide6 的框架数据文件，
+# macOS 平台不应收集 PySide6 的框架数据文件，
 # 因为这会导致符号链接冲突（FileExistsError: Versions/Current/Resources）
 # PyInstaller 会自动处理必要的 Qt 框架依赖
-if not IS_MACOS:
-    try:
-        pyside6_datas = collect_data_files('PySide6', include_py_files=False)
-        datas.extend(pyside6_datas)
-    except Exception as e:
-        print(f"警告: 收集 PySide6 数据文件失败: {e}")
-else:
-    print("macOS 平台: 跳过 PySide6 数据文件收集，避免框架符号链接冲突")
+print("macOS 平台: 跳过 PySide6 数据文件收集，避免框架符号链接冲突")
 
 # 隐藏导入
 hiddenimports = [
@@ -168,117 +150,52 @@ pyz = PYZ(
     cipher=block_cipher
 )
 
-# Windows 平台配置
-if IS_WINDOWS:
-    exe = EXE(
-        pyz,
-        a.scripts,
-        [],
-        exclude_binaries=True,
-        name=APP_NAME,
-        debug=False,
-        bootloader_ignore_signals=False,
-        strip=False,
-        upx=True,
-        console=False,  # GUI 应用不显示控制台
-        disable_windowed_traceback=False,
-        argv_emulation=False,
-        target_arch=None,
-        codesign_identity=None,
-        entitlements_file=None,
-        icon=str(assets_dir / 'icon.ico') if (assets_dir / 'icon.ico').exists() else None,
-    )
-    
-    coll = COLLECT(
-        exe,
-        a.binaries,
-        a.zipfiles,
-        a.datas,
-        strip=False,
-        upx=True,
-        upx_exclude=[],
-        name=APP_NAME,
-    )
+exe = EXE(
+    pyz,
+    a.scripts,
+    [],
+    exclude_binaries=True,
+    name=APP_NAME,
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    console=False,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+)
 
-# macOS 平台配置
-elif IS_MACOS:
-    exe = EXE(
-        pyz,
-        a.scripts,
-        [],
-        exclude_binaries=True,
-        name=APP_NAME,
-        debug=False,
-        bootloader_ignore_signals=False,
-        strip=False,
-        upx=True,
-        console=False,
-        disable_windowed_traceback=False,
-        argv_emulation=False,
-        target_arch=None,
-        codesign_identity=None,
-        entitlements_file=None,
-    )
-    
-    coll = COLLECT(
-        exe,
-        a.binaries,
-        a.zipfiles,
-        a.datas,
-        strip=False,
-        upx=True,
-        upx_exclude=[],
-        name=APP_NAME,
-    )
-    
-    app = BUNDLE(
-        coll,
-        name=f'{APP_NAME}.app',
-        icon=str(assets_dir / 'icon.icns') if (assets_dir / 'icon.icns').exists() else None,
-        bundle_identifier='com.smartrenamer.app',
-        version=APP_VERSION,
-        info_plist={
-            'CFBundleName': APP_NAME,
-            'CFBundleDisplayName': APP_NAME,
-            'CFBundleVersion': APP_VERSION,
-            'CFBundleShortVersionString': APP_VERSION,
-            'NSHighResolutionCapable': 'True',
-            'NSPrincipalClass': 'NSApplication',
-            'NSAppleScriptEnabled': False,
-            # 避免 Qt 框架符号链接问题
-            'LSEnvironment': {
-                'QT_MAC_WANTS_LAYER': '1',
-            },
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name=APP_NAME,
+)
+
+app = BUNDLE(
+    coll,
+    name=f'{APP_NAME}.app',
+    icon=str(assets_dir / 'icon.icns') if (assets_dir / 'icon.icns').exists() else None,
+    bundle_identifier='com.smartrenamer.app',
+    version=APP_VERSION,
+    info_plist={
+        'CFBundleName': APP_NAME,
+        'CFBundleDisplayName': APP_NAME,
+        'CFBundleVersion': APP_VERSION,
+        'CFBundleShortVersionString': APP_VERSION,
+        'NSHighResolutionCapable': 'True',
+        'NSPrincipalClass': 'NSApplication',
+        'NSAppleScriptEnabled': False,
+        # 避免 Qt 框架符号链接问题
+        'LSEnvironment': {
+            'QT_MAC_WANTS_LAYER': '1',
         },
-    )
-
-# Linux 平台配置
-else:
-    exe = EXE(
-        pyz,
-        a.scripts,
-        [],
-        exclude_binaries=True,
-        name=APP_NAME,
-        debug=False,
-        bootloader_ignore_signals=False,
-        strip=False,
-        upx=True,
-        console=False,
-        disable_windowed_traceback=False,
-        argv_emulation=False,
-        target_arch=None,
-        codesign_identity=None,
-        entitlements_file=None,
-    )
-    
-    coll = COLLECT(
-        exe,
-        a.binaries,
-        a.zipfiles,
-        a.datas,
-        strip=False,
-        upx=True,
-        upx_exclude=[],
-        name=APP_NAME,
-    )
+    },
+)
